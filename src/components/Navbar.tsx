@@ -1,12 +1,14 @@
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, User, Home, LogIn, UserPlus } from 'lucide-react';
+import { ShoppingCart, User, Home, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 
 const Navbar = () => {
-  const { getItemCount } = useCart();
+  const { cartItems } = useCart();
+  const { user, signOut } = useAuth();
   const location = useLocation();
-  const itemCount = getItemCount();
+  const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -59,25 +61,44 @@ const Navbar = () => {
             </Link>
 
             {/* Auth Links */}
-            <Link to="/login">
-              <Button 
-                variant={isActive('/login') ? 'default' : 'outline'} 
-                size="sm"
-              >
-                <LogIn className="w-4 h-4" />
-                <span className="ml-2 hidden sm:inline">Login</span>
-              </Button>
-            </Link>
-            
-            <Link to="/signup">
-              <Button 
-                variant={isActive('/signup') ? 'secondary' : 'ghost'} 
-                size="sm"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span className="ml-2 hidden sm:inline">Sign Up</span>
-              </Button>
-            </Link>
+            {user ? (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground hidden sm:inline">
+                  Welcome, {user.email}
+                </span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => signOut()}
+                  className="text-foreground hover:text-primary"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="ml-2 hidden sm:inline">Logout</span>
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Link to="/login">
+                  <Button 
+                    variant={isActive('/login') ? 'default' : 'outline'} 
+                    size="sm"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span className="ml-2 hidden sm:inline">Login</span>
+                  </Button>
+                </Link>
+                
+                <Link to="/signup">
+                  <Button 
+                    variant={isActive('/signup') ? 'secondary' : 'ghost'} 
+                    size="sm"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span className="ml-2 hidden sm:inline">Sign Up</span>
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

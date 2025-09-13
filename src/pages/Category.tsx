@@ -5,42 +5,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { useCart } from '@/contexts/CartContext';
 import { Product } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
-
-// Sample product data
-const productData: Record<string, Product[]> = {
-  grocery: [
-    { id: 'g1', name: 'Whole Wheat Bread', price: 3.99, category: 'grocery', image: '/placeholder.svg' },
-    { id: 'g2', name: 'Organic Milk (1L)', price: 4.49, category: 'grocery', image: '/placeholder.svg' },
-    { id: 'g3', name: 'Brown Rice (2kg)', price: 8.99, category: 'grocery', image: '/placeholder.svg' },
-    { id: 'g4', name: 'Olive Oil (500ml)', price: 12.99, category: 'grocery', image: '/placeholder.svg' },
-    { id: 'g5', name: 'Pasta (500g)', price: 2.99, category: 'grocery', image: '/placeholder.svg' },
-    { id: 'g6', name: 'Canned Tomatoes', price: 1.89, category: 'grocery', image: '/placeholder.svg' }
-  ],
-  vegetables: [
-    { id: 'v1', name: 'Fresh Tomatoes (1kg)', price: 4.99, category: 'vegetables', image: '/placeholder.svg' },
-    { id: 'v2', name: 'Organic Carrots (500g)', price: 3.49, category: 'vegetables', image: '/placeholder.svg' },
-    { id: 'v3', name: 'Fresh Spinach (250g)', price: 2.99, category: 'vegetables', image: '/placeholder.svg' },
-    { id: 'v4', name: 'Bell Peppers (3pcs)', price: 5.99, category: 'vegetables', image: '/placeholder.svg' },
-    { id: 'v5', name: 'Red Onions (1kg)', price: 2.49, category: 'vegetables', image: '/placeholder.svg' },
-    { id: 'v6', name: 'Fresh Broccoli', price: 3.99, category: 'vegetables', image: '/placeholder.svg' }
-  ],
-  fruits: [
-    { id: 'f1', name: 'Red Apples (1kg)', price: 5.99, category: 'fruits', image: '/placeholder.svg' },
-    { id: 'f2', name: 'Fresh Bananas (1kg)', price: 3.49, category: 'fruits', image: '/placeholder.svg' },
-    { id: 'f3', name: 'Orange Pack (2kg)', price: 7.99, category: 'fruits', image: '/placeholder.svg' },
-    { id: 'f4', name: 'Fresh Grapes (500g)', price: 6.99, category: 'fruits', image: '/placeholder.svg' },
-    { id: 'f5', name: 'Strawberries (250g)', price: 4.99, category: 'fruits', image: '/placeholder.svg' },
-    { id: 'f6', name: 'Mango (3pcs)', price: 8.99, category: 'fruits', image: '/placeholder.svg' }
-  ],
-  'cold-drinks': [
-    { id: 'd1', name: 'Coca Cola (2L)', price: 3.99, category: 'cold-drinks', image: '/placeholder.svg' },
-    { id: 'd2', name: 'Orange Juice (1L)', price: 4.99, category: 'cold-drinks', image: '/placeholder.svg' },
-    { id: 'd3', name: 'Sparkling Water (6pack)', price: 5.49, category: 'cold-drinks', image: '/placeholder.svg' },
-    { id: 'd4', name: 'Energy Drink (250ml)', price: 2.99, category: 'cold-drinks', image: '/placeholder.svg' },
-    { id: 'd5', name: 'Iced Tea (500ml)', price: 2.49, category: 'cold-drinks', image: '/placeholder.svg' },
-    { id: 'd6', name: 'Lemonade (1L)', price: 3.49, category: 'cold-drinks', image: '/placeholder.svg' }
-  ]
-};
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const categoryNames: Record<string, string> = {
   grocery: 'Grocery',
@@ -53,8 +19,46 @@ const Category = () => {
   const { categoryId } = useParams<{ categoryId: string }>();
   const { addToCart } = useCart();
   const { toast } = useToast();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!categoryId || !productData[categoryId]) {
+  useEffect(() => {
+    const fetchProducts = async () => {
+      if (!categoryId) return;
+      
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('category', categoryId);
+
+        if (error) {
+          console.error('Error fetching products:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load products. Please try again.",
+            variant: "destructive",
+          });
+        } else {
+          setProducts(data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load products. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [categoryId, toast]);
+
+  if (!categoryId || !categoryNames[categoryId]) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -70,7 +74,6 @@ const Category = () => {
     );
   }
 
-  const products = productData[categoryId];
   const categoryName = categoryNames[categoryId];
 
   const handleAddToCart = (product: Product) => {
@@ -101,8 +104,24 @@ const Category = () => {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product, index) => (
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(6)].map((_, index) => (
+              <Card key={index} className="animate-pulse">
+                <div className="h-48 bg-muted rounded-t-lg" />
+                <CardContent className="p-4">
+                  <div className="h-4 bg-muted rounded mb-2" />
+                  <div className="h-6 bg-muted rounded w-20" />
+                </CardContent>
+                <CardFooter className="p-4 pt-0">
+                  <div className="h-8 bg-muted rounded w-full" />
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {products.map((product, index) => (
             <Card 
               key={product.id} 
               className="hover:shadow-medium transition-all duration-300 transform hover:-translate-y-1 animate-fade-up"
@@ -141,8 +160,9 @@ const Category = () => {
                 </Button>
               </CardFooter>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Empty State */}
         {products.length === 0 && (

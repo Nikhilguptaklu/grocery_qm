@@ -1,13 +1,25 @@
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Minus, Plus, Trash2, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Trash2, ShoppingCart, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Cart = () => {
-  const { state, removeFromCart, updateQuantity, clearCart } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, clearCart, getCartTotal } = useCart();
   const { toast } = useToast();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, []);
 
   const handleQuantityChange = (id: string, newQuantity: number) => {
     if (newQuantity === 0) {
@@ -37,15 +49,75 @@ const Cart = () => {
     });
   };
 
-  const handleCheckout = () => {
-    toast({
-      title: "Order placed!",
-      description: "Your order has been placed successfully. You will receive a confirmation email shortly.",
-    });
-    clearCart();
+  const handleCheckout = async () => {
+    if (!user) {
+      toast({
+        title: "Please log in",
+        description: "You need to be logged in to place an order.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      toast({
+        title: "Cart is empty",
+        description: "Please add items to your cart before checkout.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Create order
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user.id,
+          total_amount: getCartTotal(),
+          status: 'pending',
+          delivery_address: user.user_metadata?.address || 'No address provided'
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const orderItems = cartItems.map(item => ({
+        order_id: order.id,
+        product_id: item.id,
+        quantity: item.quantity,
+        price: item.price
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      toast({
+        title: "Order placed successfully!",
+        description: `Your order of $${getCartTotal().toFixed(2)} has been confirmed.`,
+      });
+      
+      clearCart();
+    } catch (error) {
+      console.error('Error placing order:', error);
+      toast({
+        title: "Order failed",
+        description: "Failed to place order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  if (state.items.length === 0) {
+  if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -92,12 +164,12 @@ const Cart = () => {
             <div>
               <h1 className="text-3xl font-bold text-foreground">Your Cart</h1>
               <p className="text-muted-foreground">
-                {state.items.length} {state.items.length === 1 ? 'item' : 'items'} in your cart
+                {cartItems.length} {cartItems.length === 1 ? 'item' : 'items'} in your cart
               </p>
             </div>
           </div>
           
-          {state.items.length > 0 && (
+          {cartItems.length > 0 && (
             <Button 
               variant="outline" 
               onClick={handleClearCart}
@@ -112,7 +184,7 @@ const Cart = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
-            {state.items.map((item, index) => (
+            {cartItems.map((item, index) => (
               <Card 
                 key={item.id} 
                 className="animate-fade-up"
@@ -196,7 +268,7 @@ const Cart = () => {
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>${state.total.toFixed(2)}</span>
+                  <span>${getCartTotal().toFixed(2)}</span>
                 </div>
                 
                 <div className="flex justify-between">
@@ -206,22 +278,24 @@ const Cart = () => {
                 
                 <div className="flex justify-between">
                   <span>Tax</span>
-                  <span>${(state.total * 0.1).toFixed(2)}</span>
+                  <span>${(getCartTotal() * 0.1).toFixed(2)}</span>
                 </div>
                 
                 <hr className="my-4" />
                 
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Total</span>
-                  <span>${(state.total * 1.1).toFixed(2)}</span>
+                  <span>${(getCartTotal() * 1.1).toFixed(2)}</span>
                 </div>
 
                 <Button 
                   onClick={handleCheckout}
                   className="w-full mt-6" 
                   size="lg"
+                  disabled={isProcessing || cartItems.length === 0}
                 >
-                  Proceed to Checkout
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  {isProcessing ? 'Processing...' : 'Proceed to Checkout'}
                 </Button>
 
                 <p className="text-sm text-muted-foreground text-center mt-4">

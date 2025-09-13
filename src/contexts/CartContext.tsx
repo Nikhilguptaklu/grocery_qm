@@ -31,6 +31,8 @@ const CartContext = createContext<{
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
   getItemCount: () => number;
+  cartItems: CartItem[];
+  getCartTotal: () => number;
 } | null>(null);
 
 const cartReducer = (state: CartState, action: CartAction): CartState => {
@@ -109,6 +111,10 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return state.items.reduce((count, item) => count + item.quantity, 0);
   };
 
+  const getCartTotal = () => {
+    return state.total;
+  };
+
   return (
     <CartContext.Provider
       value={{
@@ -119,6 +125,8 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         updateQuantity,
         clearCart,
         getItemCount,
+        cartItems: state.items,
+        getCartTotal,
       }}
     >
       {children}
