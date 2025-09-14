@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Minus, Plus, Trash2, ShoppingCart, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 const Cart = () => {
   const { cartItems, removeFromCart, updateQuantity, clearCart, getCartTotal } = useCart();
   const { toast } = useToast();
-  const [isProcessing, setIsProcessing] = useState(false);
+  const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -49,7 +49,7 @@ const Cart = () => {
     });
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!user) {
       toast({
         title: "Please log in",
@@ -68,53 +68,7 @@ const Cart = () => {
       return;
     }
 
-    setIsProcessing(true);
-
-    try {
-      // Create order
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          total_amount: getCartTotal(),
-          status: 'pending',
-          delivery_address: user.user_metadata?.address || 'No address provided'
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      // Create order items
-      const orderItems = cartItems.map(item => ({
-        order_id: order.id,
-        product_id: item.id,
-        quantity: item.quantity,
-        price: item.price
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
-      if (itemsError) throw itemsError;
-
-      toast({
-        title: "Order placed successfully!",
-        description: `Your order of $${getCartTotal().toFixed(2)} has been confirmed.`,
-      });
-      
-      clearCart();
-    } catch (error) {
-      console.error('Error placing order:', error);
-      toast({
-        title: "Order failed",
-        description: "Failed to place order. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+    navigate('/checkout');
   };
 
   if (cartItems.length === 0) {
@@ -292,10 +246,10 @@ const Cart = () => {
                   onClick={handleCheckout}
                   className="w-full mt-6" 
                   size="lg"
-                  disabled={isProcessing || cartItems.length === 0}
+                  disabled={cartItems.length === 0}
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
-                  {isProcessing ? 'Processing...' : 'Proceed to Checkout'}
+                  Proceed to Checkout
                 </Button>
 
                 <p className="text-sm text-muted-foreground text-center mt-4">

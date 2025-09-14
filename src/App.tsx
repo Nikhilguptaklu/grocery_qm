@@ -9,6 +9,7 @@ import Navbar from "@/components/Navbar";
 import Home from "./pages/Home";
 import Category from "./pages/Category";
 import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
@@ -29,6 +30,7 @@ const App = () => (
                 <Route path="/" element={<Home />} />
                 <Route path="/category/:categoryId" element={<Category />} />
                 <Route path="/cart" element={<Cart />} />
+                <Route path="/checkout" element={<Checkout />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
