@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, CreditCard, MapPin, CheckCircle, Truck } from 'lucide-react';
+import { ArrowLeft, CreditCard, MapPin, CheckCircle, Truck, Navigation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import Map from '@/components/Map';
 
 const Checkout = () => {
   const { cartItems, clearCart, getCartTotal } = useCart();
@@ -21,6 +22,8 @@ const Checkout = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string>('');
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [coordinates, setCoordinates] = useState<[number, number] | null>(null);
   
   const [address, setAddress] = useState({
     street: '',
@@ -32,6 +35,78 @@ const Checkout = () => {
   
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [deliveryNotes, setDeliveryNotes] = useState('');
+
+  const getCurrentLocation = () => {
+    setIsGettingLocation(true);
+    
+    if (!navigator.geolocation) {
+      toast({
+        title: "Geolocation not supported",
+        description: "Your browser doesn't support geolocation.",
+        variant: "destructive",
+      });
+      setIsGettingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords: [number, number] = [position.coords.longitude, position.coords.latitude];
+        setCoordinates(coords);
+        
+        // Update map location if available
+        if ((window as any).updateMapLocation) {
+          (window as any).updateMapLocation(coords);
+        }
+        
+        // Reverse geocode to get address
+        reverseGeocode(coords);
+        setIsGettingLocation(false);
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        toast({
+          title: "Location access denied",
+          description: "Please allow location access or enter address manually.",
+          variant: "destructive",
+        });
+        setIsGettingLocation(false);
+      }
+    );
+  };
+
+  const reverseGeocode = async (coords: [number, number]) => {
+    try {
+      // This is a simple approximation - in production you'd use a proper geocoding service
+      // For now, we'll just update the coordinates and let the user enter the address
+      setCoordinates(coords);
+      
+      toast({
+        title: "Location selected",
+        description: "Please verify and complete your address details.",
+      });
+    } catch (error) {
+      console.error('Error reverse geocoding:', error);
+    }
+  };
+
+  const handleLocationSelect = (coords: [number, number], addressString?: string) => {
+    setCoordinates(coords);
+    
+    if (addressString) {
+      // Parse the address string and populate form fields
+      // This is a basic implementation - you might want to improve this
+      const parts = addressString.split(',');
+      if (parts.length >= 3) {
+        setAddress(prev => ({
+          ...prev,
+          street: parts[0]?.trim() || '',
+          city: parts[1]?.trim() || '',
+          state: parts[2]?.trim() || ''
+        }));
+      }
+    }
+  };
 
   useEffect(() => {
     if (!user) {
@@ -175,12 +250,33 @@ const Checkout = () => {
             {/* Delivery Address */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <MapPin className="w-5 h-5" />
-                  <span>Delivery Address</span>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <MapPin className="w-5 h-5" />
+                    <span>Delivery Address</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={getCurrentLocation}
+                    disabled={isGettingLocation}
+                    className="flex items-center space-x-2"
+                  >
+                    <Navigation className="w-4 h-4" />
+                    <span>{isGettingLocation ? 'Getting...' : 'Use Current Location'}</span>
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Map Component */}
+                <div className="mb-6">
+                  <Label className="text-sm font-medium mb-2 block">Select delivery location on map</Label>
+                  <Map 
+                    onLocationSelect={handleLocationSelect}
+                    initialCoordinates={coordinates || undefined}
+                  />
+                </div>
+                
                 <div>
                   <Label htmlFor="street">Street Address</Label>
                   <Input
