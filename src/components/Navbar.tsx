@@ -1,14 +1,43 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, User, Home, LogIn, UserPlus, LogOut } from 'lucide-react';
+import { ShoppingCart, User, Home, LogIn, UserPlus, LogOut, Shield, Truck, Menu, X } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { supabase } from '@/integrations/supabase/client';
 
 const Navbar = () => {
   const { cartItems } = useCart();
   const { user, signOut } = useAuth();
   const location = useLocation();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserRole();
+    } else {
+      setUserRole(null);
+    }
+  }, [user]);
+
+  const fetchUserRole = async () => {
+    if (!user) return;
+    
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      setUserRole(profile?.role || null);
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+    }
+  };
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -66,15 +95,37 @@ const Navbar = () => {
                 <span className="text-sm text-muted-foreground hidden sm:inline">
                   Welcome, {user.email}
                 </span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => signOut()}
-                  className="text-foreground hover:text-primary"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span className="ml-2 hidden sm:inline">Logout</span>
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <User className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {userRole === 'admin' && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin" className="flex items-center">
+                          <Shield className="mr-2 h-4 w-4" />
+                          <span>Admin Panel</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {(userRole === 'admin' || userRole === 'delivery') && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/delivery" className="flex items-center">
+                          <Truck className="mr-2 h-4 w-4" />
+                          <span>Delivery Dashboard</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={signOut}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ) : (
               <>

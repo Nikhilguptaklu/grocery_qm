@@ -11,7 +11,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import Map from '@/components/Map';
+import MappLsMap from '@/components/MappLsMap';
 
 const Checkout = () => {
   const { cartItems, clearCart, getCartTotal } = useCart();
@@ -24,6 +24,8 @@ const Checkout = () => {
   const [orderId, setOrderId] = useState<string>('');
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [coordinates, setCoordinates] = useState<[number, number] | null>(null);
+  const [useCurrentLocation, setUseCurrentLocation] = useState(false);
+  const [manualAddress, setManualAddress] = useState(false);
   
   const [address, setAddress] = useState({
     street: '',
@@ -59,8 +61,8 @@ const Checkout = () => {
           (window as any).updateMapLocation(coords);
         }
         
-        // Reverse geocode to get address
-        reverseGeocode(coords);
+        // Use Mappls reverse geocoding
+        reverseGeocodeMappls(coords);
         setIsGettingLocation(false);
       },
       (error) => {
@@ -75,18 +77,40 @@ const Checkout = () => {
     );
   };
 
-  const reverseGeocode = async (coords: [number, number]) => {
+  const reverseGeocodeMappls = async (coords: [number, number]) => {
     try {
-      // This is a simple approximation - in production you'd use a proper geocoding service
-      // For now, we'll just update the coordinates and let the user enter the address
-      setCoordinates(coords);
+      const response = await fetch(
+        `https://apis.mappls.com/advancedmaps/v1/71b7d04978f4e17d22a1e37e1c72535e/rev_geocode?lat=${coords[1]}&lng=${coords[0]}`
+      );
+      const data = await response.json();
       
-      toast({
-        title: "Location selected",
-        description: "Please verify and complete your address details.",
-      });
+      if (data && data.results && data.results.length > 0) {
+        const result = data.results[0];
+        const addressString = result.formatted_address || `${result.locality}, ${result.district}, ${result.state}`;
+        
+        // Auto-fill address fields
+        setAddress(prev => ({
+          ...prev,
+          street: result.house_number ? `${result.house_number} ${result.street || ''}` : (result.street || ''),
+          city: result.locality || '',
+          state: result.state || '',
+          zipCode: result.pincode || ''
+        }));
+        
+        setCoordinates(coords);
+        
+        toast({
+          title: "Location selected",
+          description: "Address has been automatically filled. Please verify the details.",
+        });
+      }
     } catch (error) {
       console.error('Error reverse geocoding:', error);
+      setCoordinates(coords);
+      toast({
+        title: "Location selected",
+        description: "Please complete your address details manually.",
+      });
     }
   };
 
@@ -250,32 +274,52 @@ const Checkout = () => {
             {/* Delivery Address */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <MapPin className="w-5 h-5" />
-                    <span>Delivery Address</span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={getCurrentLocation}
-                    disabled={isGettingLocation}
-                    className="flex items-center space-x-2"
-                  >
-                    <Navigation className="w-4 h-4" />
-                    <span>{isGettingLocation ? 'Getting...' : 'Use Current Location'}</span>
-                  </Button>
+                <CardTitle className="flex items-center space-x-2">
+                  <MapPin className="w-5 h-5" />
+                  <span>Delivery Address</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Map Component */}
-                <div className="mb-6">
-                  <Label className="text-sm font-medium mb-2 block">Select delivery location on map</Label>
-                  <Map 
-                    onLocationSelect={handleLocationSelect}
-                    initialCoordinates={coordinates || undefined}
-                  />
+                {/* Address Selection Method */}
+                <div className="flex space-x-2 mb-4">
+                  <Button
+                    type="button"
+                    variant={useCurrentLocation ? "default" : "outline"}
+                    onClick={() => {
+                      setUseCurrentLocation(true);
+                      setManualAddress(false);
+                      getCurrentLocation();
+                    }}
+                    disabled={isGettingLocation}
+                    className="flex-1"
+                  >
+                    <Navigation className="w-4 h-4 mr-2" />
+                    {isGettingLocation ? 'Getting Location...' : 'Use Current Location'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={manualAddress ? "default" : "outline"}
+                    onClick={() => {
+                      setManualAddress(true);
+                      setUseCurrentLocation(false);
+                    }}
+                    className="flex-1"
+                  >
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Manual Address
+                  </Button>
                 </div>
+
+                {/* Map Component - only show if using current location */}
+                {useCurrentLocation && (
+                  <div className="mb-6">
+                    <Label className="text-sm font-medium mb-2 block">Select delivery location on map</Label>
+                    <MappLsMap 
+                      onLocationSelect={handleLocationSelect}
+                      initialCoordinates={coordinates || undefined}
+                    />
+                  </div>
+                )}
                 
                 <div>
                   <Label htmlFor="street">Street Address</Label>

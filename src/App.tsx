@@ -12,7 +12,10 @@ import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import Admin from "./pages/Admin";
+import Delivery from "./pages/Delivery";
 import NotFound from "./pages/NotFound";
+import Chatbot from "./components/Chatbot";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +29,7 @@ const App = () => (
           <BrowserRouter>
             <div className="min-h-screen bg-background">
               <Navbar />
+              <Chatbot />
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/category/:categoryId" element={<Category />} />
@@ -33,6 +37,8 @@ const App = () => (
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/delivery" element={<Delivery />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
