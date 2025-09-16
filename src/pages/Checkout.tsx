@@ -194,9 +194,8 @@ const Checkout = () => {
 
       if (itemsError) throw itemsError;
 
-      setOrderId(order.id);
-      setOrderSuccess(true);
       clearCart();
+      navigate(`/order-success?orderId=${order.id}`);
       
     } catch (error) {
       console.error('Error placing order:', error);
@@ -210,49 +209,6 @@ const Checkout = () => {
     }
   };
 
-  if (orderSuccess) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center">
-            <CheckCircle className="w-24 h-24 text-success mx-auto mb-6" />
-            <h1 className="text-3xl font-bold text-foreground mb-4">Order Successful!</h1>
-            <p className="text-muted-foreground mb-2">Your order has been confirmed</p>
-            <p className="text-sm text-muted-foreground mb-8">Order ID: {orderId}</p>
-            
-            <Card className="max-w-md mx-auto mb-8">
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-3 mb-4">
-                  <Truck className="w-6 h-6 text-primary" />
-                  <div className="text-left">
-                    <p className="font-semibold">Estimated Delivery</p>
-                    <p className="text-sm text-muted-foreground">30-45 minutes</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <MapPin className="w-6 h-6 text-primary" />
-                  <div className="text-left">
-                    <p className="font-semibold">Delivery Address</p>
-                    <p className="text-sm text-muted-foreground">
-                      {address.street}, {address.city}, {address.state} {address.zipCode}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="space-y-4">
-              <Link to="/">
-                <Button size="lg" className="w-full sm:w-auto">
-                  Continue Shopping
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
