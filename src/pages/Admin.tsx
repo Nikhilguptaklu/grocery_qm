@@ -60,6 +60,18 @@ interface Order {
   order_items?: OrderItem[];
 }
 
+interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  address: string | null;
+  role: 'admin' | 'customer' | 'delivery';
+  status: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 const Admin = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -68,6 +80,7 @@ const Admin = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('products');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -255,6 +268,18 @@ const Admin = () => {
 
       if (ordersError) {
         console.error('Orders fetch error:', ordersError);
+      }
+
+      // Fetch all users (profiles)
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (usersError) {
+        console.error('Users fetch error:', usersError);
+      } else {
+        setUsers(usersData as User[] || []);
       }
 
     } catch (error) {
@@ -460,6 +485,30 @@ const Admin = () => {
     }
   };
 
+  const handleUpdateUserStatus = async (userId: string, status: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: `User ${status === 'blocked' ? 'blocked' : 'activated'} successfully.`,
+      });
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error updating user status:', error);
+      toast({
+        title: "Error",
+        description: `Failed to update user status: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -495,7 +544,7 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center space-x-2">
               <Users className="w-4 h-4" />
-              <span>Users</span>
+              <span>Users ({users.length})</span>
             </TabsTrigger>
           </TabsList>
 
@@ -872,13 +921,89 @@ const Admin = () => {
 
           <TabsContent value="users" className="space-y-6">
             <h2 className="text-2xl font-semibold">Users Management</h2>
-            <Card>
-              <CardContent className="p-8 text-center">
-                <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">User Management</h3>
-                <p className="text-muted-foreground">User management features coming soon...</p>
-              </CardContent>
-            </Card>
+            {users.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No users found</h3>
+                  <p className="text-muted-foreground">Registered users will appear here.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {users.map((user) => (
+                  <Card key={user.id}>
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-semibold">{user.name || 'No Name'}</h3>
+                            <Badge 
+                              variant={user.role === 'admin' ? 'default' : user.role === 'delivery' ? 'secondary' : 'outline'}
+                              className="capitalize"
+                            >
+                              {user.role}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-1">
+                            Email: {user.email}
+                          </p>
+                          {user.phone && (
+                            <p className="text-sm text-muted-foreground mb-1">
+                              Phone: {user.phone}
+                            </p>
+                          )}
+                          {user.address && (
+                            <p className="text-sm text-muted-foreground mb-1">
+                              Address: {user.address}
+                            </p>
+                          )}
+                          <p className="text-sm text-muted-foreground">
+                            Joined: {new Date(user.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end space-y-2">
+                          <Badge 
+                            variant={user.status === 'blocked' ? 'destructive' : 'default'}
+                            className="capitalize"
+                          >
+                            {user.status || 'active'}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="flex space-x-2 mt-4">
+                        {user.status !== 'blocked' ? (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to block ${user.name || user.email}? They won't be able to login.`)) {
+                                handleUpdateUserStatus(user.id, 'blocked');
+                              }
+                            }}
+                          >
+                            Block User
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to activate ${user.name || user.email}?`)) {
+                                handleUpdateUserStatus(user.id, 'active');
+                              }
+                            }}
+                          >
+                            Activate User
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
