@@ -7,6 +7,15 @@ import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+// ✅ Helper function for INR formatting
+const formatPrice = (price: number) => {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 2,
+  }).format(price);
+};
+
 const Cart = () => {
   const { cartItems, removeFromCart, updateQuantity, clearCart, getCartTotal } = useCart();
   const { toast } = useToast();
@@ -73,11 +82,11 @@ const Cart = () => {
 
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center space-x-4 mb-8">
+      <div className="min-h-screen bg-background px-4">
+        <div className="max-w-4xl mx-auto py-8">
+          <div className="flex flex-col sm:flex-row items-center sm:space-x-4 mb-8 text-center sm:text-left">
             <Link to="/">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="mb-4 sm:mb-0">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Continue Shopping
               </Button>
@@ -86,10 +95,12 @@ const Cart = () => {
           </div>
 
           <div className="text-center py-16">
-            <ShoppingCart className="w-24 h-24 text-muted-foreground mx-auto mb-6" />
-            <h2 className="text-2xl font-semibold text-foreground mb-4">Your cart is empty</h2>
-            <p className="text-muted-foreground mb-8">
-              Looks like you haven't added any items to your cart yet.
+            <ShoppingCart className="w-20 h-20 sm:w-24 sm:h-24 text-muted-foreground mx-auto mb-6" />
+            <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4">
+              Your cart is empty
+            </h2>
+            <p className="text-muted-foreground mb-8 text-sm sm:text-base">
+              Looks like you haven't added any items yet.
             </p>
             <Link to="/">
               <Button size="lg">
@@ -104,30 +115,30 @@ const Cart = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-background px-4">
+      <div className="max-w-6xl mx-auto py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4">
             <Link to="/">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="mb-4 sm:mb-0">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Continue Shopping
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Your Cart</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Your Cart</h1>
               <p className="text-muted-foreground">
-                {cartItems.length} {cartItems.length === 1 ? 'item' : 'items'} in your cart
+                {cartItems.length} {cartItems.length === 1 ? 'item' : 'items'}
               </p>
             </div>
           </div>
-          
+
           {cartItems.length > 0 && (
             <Button 
               variant="outline" 
               onClick={handleClearCart}
-              className="text-destructive hover:text-destructive"
+              className="text-destructive hover:text-destructive w-full sm:w-auto"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Clear Cart
@@ -141,31 +152,27 @@ const Cart = () => {
             {cartItems.map((item, index) => (
               <Card 
                 key={item.id} 
-                className="animate-fade-up"
+                className="animate-fade-up w-full"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-4">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start sm:space-x-4">
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="w-20 h-20 object-cover rounded-lg"
+                      className="w-24 h-24 object-cover rounded-lg mb-4 sm:mb-0"
                     />
                     
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-foreground mb-1">
-                        {item.name}
-                      </h3>
-                      <p className="text-muted-foreground capitalize">
-                        {item.category}
-                      </p>
+                    <div className="flex-1 text-center sm:text-left">
+                      <h3 className="text-lg font-semibold text-foreground">{item.name}</h3>
+                      <p className="text-muted-foreground capitalize">{item.category}</p>
                       <p className="text-xl font-bold text-primary mt-2">
-                        ${item.price.toFixed(2)}
+                        {formatPrice(item.price)}
                       </p>
                     </div>
 
-                    <div className="flex items-center space-x-3">
-                      {/* Quantity Controls */}
+                    {/* Quantity + Remove */}
+                    <div className="flex flex-col sm:flex-row items-center gap-2 mt-4 sm:mt-0">
                       <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"
@@ -175,11 +182,7 @@ const Cart = () => {
                         >
                           <Minus className="w-4 h-4" />
                         </Button>
-                        
-                        <span className="w-12 text-center font-semibold">
-                          {item.quantity}
-                        </span>
-                        
+                        <span className="w-10 text-center font-semibold">{item.quantity}</span>
                         <Button
                           variant="outline"
                           size="sm"
@@ -189,8 +192,6 @@ const Cart = () => {
                           <Plus className="w-4 h-4" />
                         </Button>
                       </div>
-
-                      {/* Remove Button */}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -202,10 +203,10 @@ const Cart = () => {
                     </div>
                   </div>
 
-                  {/* Item Total */}
+                  {/* Item Subtotal */}
                   <div className="flex justify-end mt-4 pt-4 border-t">
                     <span className="text-lg font-semibold">
-                      Subtotal: ${(item.price * item.quantity).toFixed(2)}
+                      Subtotal: {formatPrice(item.price * item.quantity)}
                     </span>
                   </div>
                 </CardContent>
@@ -222,7 +223,7 @@ const Cart = () => {
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>${getCartTotal().toFixed(2)}</span>
+                  <span>{formatPrice(getCartTotal())}</span>
                 </div>
                 
                 <div className="flex justify-between">
@@ -231,15 +232,15 @@ const Cart = () => {
                 </div>
                 
                 <div className="flex justify-between">
-                  <span>Tax</span>
-                  <span>${(getCartTotal() * 0.1).toFixed(2)}</span>
+                  <span>Tax (10%)</span>
+                  <span>{formatPrice(getCartTotal() * 0.1)}</span>
                 </div>
                 
                 <hr className="my-4" />
                 
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Total</span>
-                  <span>${(getCartTotal() * 1.1).toFixed(2)}</span>
+                  <span>{formatPrice(getCartTotal() * 1.1)}</span>
                 </div>
 
                 <Button 
@@ -253,7 +254,7 @@ const Cart = () => {
                 </Button>
 
                 <p className="text-sm text-muted-foreground text-center mt-4">
-                  Free delivery on orders over $25
+                  Free delivery on orders over ₹2,000
                 </p>
               </CardContent>
             </Card>

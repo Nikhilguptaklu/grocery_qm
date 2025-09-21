@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Users, Package, MessageSquare, ShoppingBag } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Package, MessageSquare, ShoppingBag, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -22,6 +22,7 @@ interface Product {
   category: string;
   stock: number;
   image: string;
+  created_at?: string;
 }
 
 interface Issue {
@@ -37,13 +38,26 @@ interface Issue {
   profiles?: { name: string; email: string } | null;
 }
 
+interface OrderItem {
+  id: string;
+  quantity: number;
+  price: number;
+  product: {
+    id: string;
+    name: string;
+    image: string | null;
+  };
+}
+
 interface Order {
   id: string;
   total_amount: number;
   status: string;
   created_at: string;
   delivery_address: string;
+  user_id: string;
   profiles?: { name: string; email: string } | null;
+  order_items?: OrderItem[];
 }
 
 const Admin = () => {
@@ -56,6 +70,8 @@ const Admin = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('products');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
 
   // Product form state
   const [productForm, setProductForm] = useState({
@@ -74,6 +90,16 @@ const Admin = () => {
     checkAdminAccess();
   }, [user]);
 
+  const toggleOrderExpansion = (orderId: string) => {
+    const newExpandedOrders = new Set(expandedOrders);
+    if (newExpandedOrders.has(orderId)) {
+      newExpandedOrders.delete(orderId);
+    } else {
+      newExpandedOrders.add(orderId);
+    }
+    setExpandedOrders(newExpandedOrders);
+  };
+
   const checkAdminAccess = async () => {
     if (!user) {
       navigate('/login');
@@ -81,11 +107,22 @@ const Admin = () => {
     }
 
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        toast({
+          title: "Error",
+          description: "Failed to check user permissions.",
+          variant: "destructive",
+        });
+        navigate('/');
+        return;
+      }
 
       if (!profile || profile.role !== 'admin') {
         toast({
@@ -97,9 +134,14 @@ const Admin = () => {
         return;
       }
 
-      fetchData();
+      await fetchData();
     } catch (error) {
       console.error('Error checking admin access:', error);
+      toast({
+        title: "Error",
+        description: "Authentication error occurred.",
+        variant: "destructive",
+      });
       navigate('/');
     }
   };
@@ -107,38 +149,119 @@ const Admin = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch products
-      const { data: productsData } = await supabase
+      // Fetch products with better error handling
+      const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Fetch issues with user profiles
-      const { data: issuesData } = await supabase
+      if (productsError) {
+        console.error('Products fetch error:', productsError);
+      } else {
+        setProducts(productsData || []);
+      }
+
+      // Fetch issues with user profiles - Fixed query
+      const { data: issuesData, error: issuesError } = await supabase
         .from('issues')
-        .select(`
-          *,
-          profiles (name, email)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      // Fetch orders with user profiles
-      const { data: ordersData } = await supabase
+      // If issues exist, fetch user profiles separately
+      if (issuesData && issuesData.length > 0) {
+        const issueUserIds = [...new Set(issuesData.map(issue => issue.user_id))];
+        const { data: issueProfilesData } = await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .in('id', issueUserIds);
+
+        // Map profiles to issues
+        const issuesWithProfiles = issuesData.map(issue => ({
+          ...issue,
+          profiles: issueProfilesData?.find(profile => profile.id === issue.user_id) || null
+        }));
+
+        setIssues(issuesWithProfiles as unknown as Issue[]);
+      } else {
+        setIssues([]);
+      }
+
+      if (issuesError) {
+        console.error('Issues fetch error:', issuesError);
+      }
+
+      // Fetch orders with user profiles and order items
+      const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select(`
-          *,
-          profiles (name, email)
+          id,
+          total_amount,
+          status,
+          created_at,
+          delivery_address,
+          user_id
         `)
         .order('created_at', { ascending: false });
 
-      setProducts(productsData || []);
-      setIssues((issuesData || []) as unknown as Issue[]);
-      setOrders((ordersData || []) as unknown as Order[]);
+      if (ordersData && ordersData.length > 0) {
+        // Fetch user profiles
+        const userIds = [...new Set(ordersData.map(order => order.user_id))];
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .in('id', userIds);
+
+        // Fetch order items with product details
+        const orderIds = ordersData.map(order => order.id);
+        const { data: orderItemsData, error: orderItemsError } = await supabase
+          .from('order_items')
+          .select(`
+            id,
+            order_id,
+            quantity,
+            price,
+            products:product_id (
+              id,
+              name,
+              image
+            )
+          `)
+          .in('order_id', orderIds);
+
+        if (orderItemsError) {
+          console.error('Order items fetch error:', orderItemsError);
+        }
+
+        // Map profiles and order items to orders
+        const ordersWithDetails = ordersData.map(order => ({
+          ...order,
+          profiles: profilesData?.find(profile => profile.id === order.user_id) || null,
+          order_items: orderItemsData?.filter(item => item.order_id === order.id).map(item => ({
+            id: item.id,
+            quantity: item.quantity,
+            price: item.price,
+            product: {
+              id: item.products?.id || '',
+              name: item.products?.name || 'Unknown Product',
+              image: item.products?.image || null
+            }
+          })) || []
+        }));
+
+        setOrders(ordersWithDetails as unknown as Order[]);
+      } else {
+        setOrders([]);
+      }
+
+      if (ordersError) {
+        console.error('Orders fetch error:', ordersError);
+      }
+
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch data.",
+        description: "Failed to fetch data from the database.",
         variant: "destructive",
       });
     } finally {
@@ -146,71 +269,140 @@ const Admin = () => {
     }
   };
 
+  const resetProductForm = () => {
+    setProductForm({
+      name: '',
+      description: '',
+      price: '',
+      category: '',
+      stock: '',
+      image: ''
+    });
+    setEditingProduct(null);
+  };
+
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
     try {
+      // Validate form data
+      if (!productForm.name.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "Product name is required.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!productForm.price || isNaN(parseFloat(productForm.price)) || parseFloat(productForm.price) <= 0) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter a valid price.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!productForm.stock || isNaN(parseInt(productForm.stock)) || parseInt(productForm.stock) < 0) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter a valid stock quantity.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!productForm.category) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a category.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const productData = {
-        name: productForm.name,
-        description: productForm.description,
+        name: productForm.name.trim(),
+        description: productForm.description.trim(),
         price: parseFloat(productForm.price),
         category: productForm.category,
         stock: parseInt(productForm.stock),
-        image: productForm.image
+        image: productForm.image.trim() || null,
+        created_by: user.id // Add the user ID for RLS
       };
 
+      let error;
+
       if (editingProduct) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('products')
           .update(productData)
           .eq('id', editingProduct);
-        
-        toast({
-          title: "Success",
-          description: "Product updated successfully.",
-        });
+        error = updateError;
       } else {
-        await supabase
+        const { error: insertError } = await supabase
           .from('products')
-          .insert(productData);
-        
-        toast({
-          title: "Success",
-          description: "Product created successfully.",
-        });
+          .insert([productData]);
+        error = insertError;
       }
 
-      setProductForm({ name: '', description: '', price: '', category: '', stock: '', image: '' });
-      setEditingProduct(null);
+      if (error) {
+        console.error('Database operation error:', error);
+        toast({
+          title: "Database Error",
+          description: `Failed to ${editingProduct ? 'update' : 'create'} product: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: `Product ${editingProduct ? 'updated' : 'created'} successfully.`,
+      });
+
+      resetProductForm();
       setShowProductDialog(false);
-      fetchData();
+      await fetchData();
     } catch (error) {
       console.error('Error saving product:', error);
       toast({
         title: "Error",
-        description: "Failed to save product.",
+        description: "An unexpected error occurred while saving the product.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDeleteProduct = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this product?')) {
+      return;
+    }
+
     try {
-      await supabase
+      const { error } = await supabase
         .from('products')
         .delete()
         .eq('id', id);
+      
+      if (error) {
+        throw error;
+      }
       
       toast({
         title: "Success",
         description: "Product deleted successfully.",
       });
-      fetchData();
-    } catch (error) {
+      await fetchData();
+    } catch (error: any) {
       console.error('Error deleting product:', error);
       toast({
         title: "Error",
-        description: "Failed to delete product.",
+        description: `Failed to delete product: ${error.message}`,
         variant: "destructive",
       });
     }
@@ -222,21 +414,23 @@ const Admin = () => {
       if (adminNotes) updateData.admin_notes = adminNotes;
       if (status === 'resolved') updateData.resolved_at = new Date().toISOString();
 
-      await supabase
+      const { error } = await supabase
         .from('issues')
         .update(updateData)
         .eq('id', issueId);
+      
+      if (error) throw error;
       
       toast({
         title: "Success",
         description: "Issue updated successfully.",
       });
-      fetchData();
-    } catch (error) {
+      await fetchData();
+    } catch (error: any) {
       console.error('Error updating issue:', error);
       toast({
         title: "Error",
-        description: "Failed to update issue.",
+        description: `Failed to update issue: ${error.message}`,
         variant: "destructive",
       });
     }
@@ -244,21 +438,23 @@ const Admin = () => {
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
     try {
-      await supabase
+      const { error } = await supabase
         .from('orders')
         .update({ status })
         .eq('id', orderId);
+      
+      if (error) throw error;
       
       toast({
         title: "Success",
         description: "Order status updated successfully.",
       });
-      fetchData();
-    } catch (error) {
+      await fetchData();
+    } catch (error: any) {
       console.error('Error updating order:', error);
       toast({
         title: "Error",
-        description: "Failed to update order status.",
+        description: `Failed to update order status: ${error.message}`,
         variant: "destructive",
       });
     }
@@ -267,7 +463,10 @@ const Admin = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading admin dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -284,15 +483,15 @@ const Admin = () => {
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="products" className="flex items-center space-x-2">
               <Package className="w-4 h-4" />
-              <span>Products</span>
+              <span>Products ({products.length})</span>
             </TabsTrigger>
             <TabsTrigger value="orders" className="flex items-center space-x-2">
               <ShoppingBag className="w-4 h-4" />
-              <span>Orders</span>
+              <span>Orders ({orders.length})</span>
             </TabsTrigger>
             <TabsTrigger value="issues" className="flex items-center space-x-2">
               <MessageSquare className="w-4 h-4" />
-              <span>Issues</span>
+              <span>Issues ({issues.length})</span>
             </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center space-x-2">
               <Users className="w-4 h-4" />
@@ -305,7 +504,7 @@ const Admin = () => {
               <h2 className="text-2xl font-semibold">Products Management</h2>
               <Dialog open={showProductDialog} onOpenChange={setShowProductDialog}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button onClick={() => resetProductForm()}>
                     <Plus className="w-4 h-4 mr-2" />
                     Add Product
                   </Button>
@@ -318,12 +517,13 @@ const Admin = () => {
                   </DialogHeader>
                   <form onSubmit={handleProductSubmit} className="space-y-4">
                     <div>
-                      <Label htmlFor="name">Product Name</Label>
+                      <Label htmlFor="name">Product Name *</Label>
                       <Input
                         id="name"
                         value={productForm.name}
                         onChange={(e) => setProductForm({...productForm, name: e.target.value})}
                         required
+                        placeholder="Enter product name"
                       />
                     </div>
                     <div>
@@ -332,24 +532,29 @@ const Admin = () => {
                         id="description"
                         value={productForm.description}
                         onChange={(e) => setProductForm({...productForm, description: e.target.value})}
+                        placeholder="Enter product description"
+                        rows={3}
                       />
                     </div>
                     <div>
-                      <Label htmlFor="price">Price</Label>
+                      <Label htmlFor="price">Price *</Label>
                       <Input
                         id="price"
                         type="number"
                         step="0.01"
+                        min="0"
                         value={productForm.price}
                         onChange={(e) => setProductForm({...productForm, price: e.target.value})}
                         required
+                        placeholder="0.00"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="category">Category</Label>
+                      <Label htmlFor="category">Category *</Label>
                       <Select
                         value={productForm.category}
                         onValueChange={(value) => setProductForm({...productForm, category: value})}
+                        required
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
@@ -359,203 +564,321 @@ const Admin = () => {
                           <SelectItem value="vegetables">Vegetables</SelectItem>
                           <SelectItem value="cold-drinks">Cold Drinks</SelectItem>
                           <SelectItem value="grocery">Grocery</SelectItem>
+                          <SelectItem value="dairy">Dairy</SelectItem>
+                          <SelectItem value="meat">Meat</SelectItem>
+                          <SelectItem value="bakery">Bakery</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label htmlFor="stock">Stock</Label>
+                      <Label htmlFor="stock">Stock *</Label>
                       <Input
                         id="stock"
                         type="number"
+                        min="0"
                         value={productForm.stock}
                         onChange={(e) => setProductForm({...productForm, stock: e.target.value})}
                         required
+                        placeholder="0"
                       />
                     </div>
                     <div>
                       <Label htmlFor="image">Image URL</Label>
                       <Input
                         id="image"
+                        type="url"
                         value={productForm.image}
                         onChange={(e) => setProductForm({...productForm, image: e.target.value})}
+                        placeholder="https://example.com/image.jpg"
                       />
                     </div>
-                    <Button type="submit" className="w-full">
-                      {editingProduct ? 'Update Product' : 'Add Product'}
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      {isSubmitting ? 'Saving...' : (editingProduct ? 'Update Product' : 'Add Product')}
                     </Button>
                   </form>
                 </DialogContent>
               </Dialog>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {products.map((product) => (
-                <Card key={product.id}>
-                  <CardContent className="p-4">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-32 object-cover rounded-md mb-4"
-                    />
-                    <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
-                    <p className="text-sm text-muted-foreground mb-2">{product.description}</p>
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-lg font-bold">${product.price}</span>
-                      <Badge variant="secondary">Stock: {product.stock}</Badge>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setProductForm({
-                            name: product.name,
-                            description: product.description || '',
-                            price: product.price.toString(),
-                            category: product.category,
-                            stock: product.stock.toString(),
-                            image: product.image || ''
-                          });
-                          setEditingProduct(product.id);
-                          setShowProductDialog(true);
-                        }}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDeleteProduct(product.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            {products.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No products found</h3>
+                  <p className="text-muted-foreground mb-4">Start by adding your first product to the inventory.</p>
+                  <Button onClick={() => setShowProductDialog(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Your First Product
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {products.map((product) => (
+                  <Card key={product.id}>
+                    <CardContent className="p-4">
+                      {product.image && (
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="w-full h-32 object-cover rounded-md mb-4"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
+                      <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{product.description}</p>
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-lg font-bold">₹{product.price.toFixed(2)}</span>
+                        <div className="flex gap-2">
+                          <Badge variant="secondary">Stock: {product.stock}</Badge>
+                          <Badge variant="outline" className="capitalize">{product.category}</Badge>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setProductForm({
+                              name: product.name,
+                              description: product.description || '',
+                              price: product.price.toString(),
+                              category: product.category,
+                              stock: product.stock.toString(),
+                              image: product.image || ''
+                            });
+                            setEditingProduct(product.id);
+                            setShowProductDialog(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteProduct(product.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="orders" className="space-y-6">
             <h2 className="text-2xl font-semibold">Orders Management</h2>
-            <div className="space-y-4">
-              {orders.map((order) => (
-                <Card key={order.id}>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="font-semibold">Order #{order.id.slice(0, 8)}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Customer: {order.profiles?.name} ({order.profiles?.email})
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Address: {order.delivery_address}
-                        </p>
+            {orders.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <ShoppingBag className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No orders found</h3>
+                  <p className="text-muted-foreground">Orders will appear here once customers start placing them.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <Card key={order.id}>
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold">Order #{order.id.slice(0, 8)}</h3>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleOrderExpansion(order.id)}
+                              className="p-1 h-6 w-6"
+                            >
+                              {expandedOrders.has(order.id) ? 
+                                <ChevronUp className="h-4 w-4" /> : 
+                                <ChevronDown className="h-4 w-4" />
+                              }
+                            </Button>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Customer: {order.profiles?.name || 'Unknown'} ({order.profiles?.email || 'No email'})
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Address: {order.delivery_address}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Date: {new Date(order.created_at).toLocaleDateString()}
+                          </p>
+                          {order.order_items && order.order_items.length > 0 && (
+                            <p className="text-sm text-muted-foreground">
+                              Items: {order.order_items.length} product{order.order_items.length !== 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold">₹{order.total_amount.toFixed(2)}</p>
+                          <Badge 
+                            variant={
+                              order.status === 'delivered' ? 'default' :
+                              order.status === 'out-for-delivery' ? 'secondary' :
+                              order.status === 'confirmed' ? 'outline' : 'destructive'
+                            }
+                            className="capitalize"
+                          >
+                            {order.status.replace('-', ' ')}
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold">${order.total_amount}</p>
-                        <Badge 
-                          variant={
-                            order.status === 'delivered' ? 'default' :
-                            order.status === 'out-for-delivery' ? 'secondary' :
-                            order.status === 'confirmed' ? 'outline' : 'destructive'
-                          }
+
+                      {/* Order Items Details */}
+                      {expandedOrders.has(order.id) && order.order_items && order.order_items.length > 0 && (
+                        <div className="mb-4 p-4 bg-muted/50 rounded-lg">
+                          <h4 className="font-medium mb-3">Order Items:</h4>
+                          <div className="space-y-3">
+                            {order.order_items.map((item) => (
+                              <div key={item.id} className="flex items-center justify-between py-2 border-b border-border/50 last:border-b-0">
+                                <div className="flex items-center space-x-3">
+                                  {item.product.image && (
+                                    <img
+                                      src={item.product.image}
+                                      alt={item.product.name}
+                                      className="w-12 h-12 object-cover rounded-md"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                      }}
+                                    />
+                                  )}
+                                  <div>
+                                    <p className="font-medium">{item.product.name}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      Quantity: {item.quantity} × ₹{item.price.toFixed(2)}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-medium">₹{(item.quantity * item.price).toFixed(2)}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex space-x-2">
+                        <Select
+                          value={order.status}
+                          onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
                         >
-                          {order.status}
-                        </Badge>
+                          <SelectTrigger className="w-48">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="confirmed">Confirmed</SelectItem>
+                            <SelectItem value="preparing">Preparing</SelectItem>
+                            <SelectItem value="out-for-delivery">Out for Delivery</SelectItem>
+                            <SelectItem value="delivered">Delivered</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Select
-                        value={order.status}
-                        onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
-                      >
-                        <SelectTrigger className="w-40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="confirmed">Confirmed</SelectItem>
-                          <SelectItem value="preparing">Preparing</SelectItem>
-                          <SelectItem value="out-for-delivery">Out for Delivery</SelectItem>
-                          <SelectItem value="delivered">Delivered</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="issues" className="space-y-6">
             <h2 className="text-2xl font-semibold">Customer Issues</h2>
-            <div className="space-y-4">
-              {issues.map((issue) => (
-                <Card key={issue.id}>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="font-semibold">{issue.title}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Customer: {issue.profiles?.name} ({issue.profiles?.email})
-                        </p>
-                        <p className="text-sm mt-2">{issue.description}</p>
+            {issues.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No issues reported</h3>
+                  <p className="text-muted-foreground">Customer support issues will appear here.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {issues.map((issue) => (
+                  <Card key={issue.id}>
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="font-semibold">{issue.title}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Customer: {issue.profiles?.name || 'Unknown'} ({issue.profiles?.email || 'No email'})
+                          </p>
+                          <p className="text-sm mt-2">{issue.description}</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Created: {new Date(issue.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end space-y-2">
+                          <Badge 
+                            variant={
+                              issue.status === 'resolved' ? 'default' :
+                              issue.status === 'in-progress' ? 'secondary' : 'outline'
+                            }
+                            className="capitalize"
+                          >
+                            {issue.status.replace('-', ' ')}
+                          </Badge>
+                          <Badge variant="outline" className="capitalize">{issue.priority}</Badge>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end space-y-2">
-                        <Badge 
-                          variant={
-                            issue.status === 'resolved' ? 'default' :
-                            issue.status === 'in-progress' ? 'secondary' : 'outline'
-                          }
+                      {issue.admin_notes && (
+                        <div className="mb-4 p-3 bg-muted rounded-md">
+                          <p className="text-sm"><strong>Admin Notes:</strong> {issue.admin_notes}</p>
+                        </div>
+                      )}
+                      <div className="flex space-x-2">
+                        <Select
+                          value={issue.status}
+                          onValueChange={(value) => handleUpdateIssue(issue.id, value)}
                         >
-                          {issue.status}
-                        </Badge>
-                        <Badge variant="outline">{issue.priority}</Badge>
+                          <SelectTrigger className="w-40">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="in-progress">In Progress</SelectItem>
+                            <SelectItem value="resolved">Resolved</SelectItem>
+                            <SelectItem value="closed">Closed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            const notes = prompt('Add admin notes:');
+                            if (notes) {
+                              handleUpdateIssue(issue.id, issue.status, notes);
+                            }
+                          }}
+                        >
+                          Add Notes
+                        </Button>
                       </div>
-                    </div>
-                    {issue.admin_notes && (
-                      <div className="mb-4 p-3 bg-muted rounded-md">
-                        <p className="text-sm"><strong>Admin Notes:</strong> {issue.admin_notes}</p>
-                      </div>
-                    )}
-                    <div className="flex space-x-2">
-                      <Select
-                        value={issue.status}
-                        onValueChange={(value) => handleUpdateIssue(issue.id, value)}
-                      >
-                        <SelectTrigger className="w-40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="open">Open</SelectItem>
-                          <SelectItem value="in-progress">In Progress</SelectItem>
-                          <SelectItem value="resolved">Resolved</SelectItem>
-                          <SelectItem value="closed">Closed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          const notes = prompt('Add admin notes:');
-                          if (notes) {
-                            handleUpdateIssue(issue.id, issue.status, notes);
-                          }
-                        }}
-                      >
-                        Add Notes
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
             <h2 className="text-2xl font-semibold">Users Management</h2>
-            <p className="text-muted-foreground">User management features coming soon...</p>
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">User Management</h3>
+                <p className="text-muted-foreground">User management features coming soon...</p>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

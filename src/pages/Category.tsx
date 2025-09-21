@@ -12,7 +12,8 @@ const categoryNames: Record<string, string> = {
   grocery: 'Grocery',
   vegetables: 'Vegetables',
   fruits: 'Fruits',
-  'cold-drinks': 'Cold Drinks'
+  'cold-drinks': 'Cold Drinks',
+  all: 'All Products' // ✅ added All Products
 };
 
 const Category = () => {
@@ -28,10 +29,11 @@ const Category = () => {
       
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .eq('category', categoryId);
+        // ✅ If category is "all", fetch everything
+        const { data, error } =
+          categoryId === 'all'
+            ? await supabase.from('products').select('*')
+            : await supabase.from('products').select('*').eq('category', categoryId);
 
         if (error) {
           console.error('Error fetching products:', error);
@@ -58,6 +60,7 @@ const Category = () => {
     fetchProducts();
   }, [categoryId, toast]);
 
+  // ✅ Handle unknown category
   if (!categoryId || !categoryNames[categoryId]) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -98,7 +101,11 @@ const Category = () => {
             </Link>
             <div>
               <h1 className="text-3xl font-bold text-foreground">{categoryName}</h1>
-              <p className="text-muted-foreground">Fresh products delivered to your door</p>
+              <p className="text-muted-foreground">
+                {categoryId === 'all'
+                  ? "Browse all available products"
+                  : "Fresh products delivered to your door"}
+              </p>
             </div>
           </div>
         </div>
@@ -122,54 +129,58 @@ const Category = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map((product, index) => (
-            <Card 
-              key={product.id} 
-              className="hover:shadow-medium transition-all duration-300 transform hover:-translate-y-1 animate-fade-up"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <CardHeader className="p-0">
-                <div className="relative overflow-hidden rounded-t-lg">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-48 object-cover transition-transform duration-300 hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                </div>
-              </CardHeader>
-              
-              <CardContent className="p-4">
-                <CardTitle className="text-lg font-semibold text-foreground mb-2 line-clamp-2">
-                  {product.name}
-                </CardTitle>
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold text-primary">
-                    ${product.price.toFixed(2)}
-                  </span>
-                </div>
-              </CardContent>
+              <Card 
+                key={product.id} 
+                className="hover:shadow-medium transition-all duration-300 transform hover:-translate-y-1 animate-fade-up"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <CardHeader className="p-0">
+                  <div className="relative overflow-hidden rounded-t-lg">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-full h-48 object-cover transition-transform duration-300 hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="p-4">
+                  <CardTitle className="text-lg font-semibold text-foreground mb-2 line-clamp-2">
+                    {product.name}
+                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold text-primary">
+                      ₹{product.price.toFixed(2)}
+                    </span>
+                  </div>
+                </CardContent>
 
-              <CardFooter className="p-4 pt-0">
-                <Button 
-                  onClick={() => handleAddToCart(product)}
-                  className="w-full hover:bg-primary/90 transition-colors"
-                  size="sm"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add to Cart
-                </Button>
-              </CardFooter>
-            </Card>
+                <CardFooter className="p-4 pt-0">
+                  <Button 
+                    onClick={() => handleAddToCart(product)}
+                    className="w-full hover:bg-primary/90 transition-colors"
+                    size="sm"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add to Cart
+                  </Button>
+                </CardFooter>
+              </Card>
             ))}
           </div>
         )}
 
         {/* Empty State */}
-        {products.length === 0 && (
+        {products.length === 0 && !loading && (
           <div className="text-center py-16">
             <ShoppingCart className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-2xl font-semibold text-foreground mb-2">No products found</h2>
-            <p className="text-muted-foreground">We're working on adding more products to this category.</p>
+            <p className="text-muted-foreground">
+              {categoryId === 'all'
+                ? "No products are available right now."
+                : "We're working on adding more products to this category."}
+            </p>
           </div>
         )}
       </div>
