@@ -15,6 +15,8 @@ interface DeliveryOrder {
   status: string;
   created_at: string;
   delivery_address: string;
+  delivery_lat?: number | null;
+  delivery_lon?: number | null;
   delivery_notes?: string;
   estimated_delivery?: string;
   profiles?: { name: string; email: string; phone: string } | null;
@@ -26,17 +28,36 @@ interface DeliveryOrder {
 }
 
 const Delivery = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
   const [orders, setOrders] = useState<DeliveryOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [realtimeEnabled, setRealtimeEnabled] = useState(false);
+  const [subscription, setSubscription] = useState<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     checkDeliveryAccess();
-  }, [user]);
+  }, [user, authLoading]);
+
+  useEffect(() => {
+    if (!realtimeEnabled) return;
+    const channel = supabase
+      .channel('orders-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => {
+        toast({ title: 'New Order', description: 'A new order was placed.' });
+        fetchOrders();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => {
+        fetchOrders();
+      })
+      .subscribe();
+    setSubscription(channel);
+    return () => { channel.unsubscribe(); };
+  }, [realtimeEnabled]);
 
   const checkDeliveryAccess = async () => {
     if (!user) {
@@ -62,6 +83,7 @@ const Delivery = () => {
       }
 
       fetchOrders();
+      setRealtimeEnabled(true);
     } catch (error) {
       console.error('Error checking delivery access:', error);
       navigate('/');
@@ -74,8 +96,17 @@ const Delivery = () => {
       let query = supabase
         .from('orders')
         .select(`
-          *,
-          profiles (name, email, phone),
+          id,
+          total_amount,
+          status,
+          created_at,
+          delivery_address,
+          delivery_lat,
+          delivery_lon,
+          delivery_notes,
+          estimated_delivery,
+          delivery_person_id,
+          user_id,
           order_items (
             quantity,
             price,
@@ -93,11 +124,45 @@ const Delivery = () => {
         query = query.in('status', ['confirmed', 'preparing']);
       }
 
+      // If user is delivery role (not admin), show only assigned orders
+      const { data: roleRow } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user?.id || '')
+        .maybeSingle();
+      if (roleRow && roleRow.role === 'delivery') {
+        query = query.eq('delivery_person_id', user?.id || '');
+      }
+
       const { data: ordersData, error } = await query;
 
       if (error) throw error;
 
-      setOrders((ordersData || []) as unknown as DeliveryOrder[]);
+      const baseOrders = (ordersData || []) as any[];
+
+      // Fetch profiles separately since there is no FK for implicit join
+      let profilesById: Record<string, { name: string; email: string; phone: string | null }> = {};
+      if (baseOrders.length > 0) {
+        const userIds = [...new Set(baseOrders.map(o => o.user_id))];
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, name, email, phone')
+          .in('id', userIds);
+        if (!profilesError && profilesData) {
+          profilesById = Object.fromEntries(profilesData.map((p: any) => [p.id, { name: p.name, email: p.email, phone: p.phone }]));
+        }
+      }
+
+      const enriched = baseOrders.map(o => ({
+        ...o,
+        profiles: profilesById[o.user_id] ? {
+          name: profilesById[o.user_id].name,
+          email: profilesById[o.user_id].email,
+          phone: profilesById[o.user_id].phone || ''
+        } : null
+      }));
+
+      setOrders(enriched as unknown as DeliveryOrder[]);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast({
@@ -238,6 +303,18 @@ const Delivery = () => {
                     <span>Delivery Address</span>
                   </h4>
                   <p className="text-sm">{order.delivery_address}</p>
+                  {order.delivery_lat && order.delivery_lon && (
+                    <div className="mt-2">
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${order.delivery_lat},${order.delivery_lon}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary underline text-sm"
+                      >
+                        Open Navigation
+                      </a>
+                    </div>
+                  )}
                   {order.delivery_notes && (
                     <p className="text-sm mt-2"><strong>Notes:</strong> {order.delivery_notes}</p>
                   )}

@@ -19,25 +19,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          // Check if user is blocked
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('status')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (profile?.status === 'blocked') {
-            // Sign out blocked users
-            await supabase.auth.signOut();
-            setSession(null);
-            setUser(null);
-            setLoading(false);
-            return;
-          }
-        }
-        
+      async (_event, session) => {
+        // Simplified: avoid selecting non-existent columns like `status`
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -45,25 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        // Check if user is blocked
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('status')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profile?.status === 'blocked') {
-          // Sign out blocked users
-          await supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-      }
-      
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);

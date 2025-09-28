@@ -34,15 +34,37 @@ const Navbar = () => {
   const fetchUserData = async () => {
     if (!user) return;
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('role, name')
         .eq('id', user.id)
-        .single();
-      setUserRole(profile?.role || null);
-      setUserName(profile?.name || null);
-    } catch (error) {
-      console.error('Error fetching user data:', error);
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching user data:', error);
+      }
+
+      if (!profile) {
+        // Create a minimal profile if it doesn't exist to avoid repeated 500s
+        const { error: upsertError } = await supabase
+          .from('profiles')
+          .upsert({ id: user.id, email: user.email || '' })
+          .select()
+          .maybeSingle();
+        if (upsertError) {
+          console.error('Error creating missing profile:', upsertError);
+        }
+        setUserRole(null);
+        setUserName(null);
+        return;
+      }
+
+      setUserRole((profile as any)?.role || null);
+      setUserName((profile as any)?.name || null);
+    } catch (err) {
+      console.error('Unexpected error fetching user data:', err);
+      setUserRole(null);
+      setUserName(null);
     }
   };
 
@@ -177,8 +199,18 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <div className="md:hidden">
+          {/* Mobile Actions */}
+          <div className="md:hidden flex items-center gap-1">
+            <Link to="/cart">
+              <Button variant="ghost" size="sm" className="relative">
+                <ShoppingCart className="w-5 h-5" />
+                {itemCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-secondary text-secondary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
+                    {itemCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
             <Button 
               variant="ghost" 
               size="sm" 

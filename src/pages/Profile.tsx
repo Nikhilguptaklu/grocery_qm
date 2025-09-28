@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, MapPin, Phone, Mail, Edit, Save, X, Package, Navigation } from 'lucide-react';
+import { User, MapPin, Phone, Mail, Edit, Save, X, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import MappLsMap from '@/components/MappLsMap';
+import AddressPicker from '@/components/AddressPicker';
 
 interface UserProfile {
   id: string;
@@ -46,8 +46,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [editingProfile, setEditingProfile] = useState(false);
   const [editingAddress, setEditingAddress] = useState(false);
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [coordinates, setCoordinates] = useState<[number, number] | null>(null);
+  
   
   const [editForm, setEditForm] = useState({
     name: '',
@@ -130,37 +129,9 @@ const Profile = () => {
     }
   };
 
-  const getCurrentLocation = () => {
-    setIsGettingLocation(true);
-    if (!navigator.geolocation) {
-      toast({ title: "Geolocation not supported", description: "Your browser doesn't support geolocation.", variant: "destructive" });
-      setIsGettingLocation(false); return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const coords: [number, number] = [pos.coords.longitude, pos.coords.latitude];
-        setCoordinates(coords); reverseGeocodeMappls(coords); setIsGettingLocation(false);
-      },
-      () => { toast({ title: "Location access denied", description: "Please allow location access.", variant: "destructive" }); setIsGettingLocation(false); }
-    );
-  };
-
-  const reverseGeocodeMappls = async (coords: [number, number]) => {
-    try {
-      const res = await fetch(`https://apis.mappls.com/advancedmaps/v1/71b7d04978f4e17d22a1e37e1c72535e/rev_geocode?lat=${coords[1]}&lng=${coords[0]}`);
-      const data = await res.json();
-      if (data?.results?.length > 0) {
-        const result = data.results[0];
-        const addressString = result.formatted_address || `${result.locality}, ${result.district}, ${result.state}`;
-        setEditForm(prev => ({ ...prev, address: addressString }));
-        toast({ title: "Location detected", description: "Address auto-filled from current location." });
-      }
-    } catch { toast({ title: "Error", description: "Failed to detect address" }); }
-  };
-
-  const handleLocationSelect = (coords: [number, number], addressString?: string) => {
-    setCoordinates(coords);
-    if (addressString) setEditForm(prev => ({ ...prev, address: addressString }));
+  const handlePickAddress = (data: { lat: number; lon: number; address: string }) => {
+    setEditForm(prev => ({ ...prev, address: data.address }));
+    toast({ title: "Location selected", description: "Address set from map." });
   };
 
   const getStatusColor = (status: string) => {
@@ -239,8 +210,7 @@ const Profile = () => {
               <CardContent className="p-6 space-y-4">
                 {editingAddress ? (
                   <>
-                    <Button onClick={getCurrentLocation} disabled={isGettingLocation} className="flex items-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white"><Navigation className="w-4 h-4" /> {isGettingLocation ? 'Getting Location...' : 'Use Current Location'}</Button>
-                    <MappLsMap onLocationSelect={handleLocationSelect} initialCoordinates={coordinates||undefined} />
+                    <AddressPicker onSave={handlePickAddress} />
                     <div>
                       <Label>Address</Label>
                       <Input value={editForm.address} onChange={(e)=>setEditForm({...editForm,address:e.target.value})} placeholder="Enter your complete address" />

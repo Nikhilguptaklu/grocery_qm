@@ -18,7 +18,7 @@ const categoryNames: Record<string, string> = {
 
 const Category = () => {
   const { categoryId } = useParams<{ categoryId: string }>();
-  const { addToCart } = useCart();
+  const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +87,26 @@ const Category = () => {
     });
   };
 
+  const getQuantityInCart = (productId: string) => {
+    const item = cartItems.find(ci => ci.id === productId);
+    return item ? item.quantity : 0;
+  };
+
+  const increment = (product: Product) => {
+    const qty = getQuantityInCart(product.id);
+    updateQuantity(product.id, qty + 1);
+  };
+
+  const decrement = (product: Product) => {
+    const qty = getQuantityInCart(product.id);
+    const next = qty - 1;
+    if (next <= 0) {
+      removeFromCart(product.id);
+    } else {
+      updateQuantity(product.id, next);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -151,20 +171,30 @@ const Category = () => {
                   </CardTitle>
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-bold text-primary">
-                      ₹{product.price.toFixed(2)}
+                      {`₹${Number(product.price).toFixed(2)}`}
                     </span>
                   </div>
                 </CardContent>
 
                 <CardFooter className="p-4 pt-0">
-                  <Button 
-                    onClick={() => handleAddToCart(product)}
-                    className="w-full hover:bg-primary/90 transition-colors"
-                    size="sm"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add to Cart
-                  </Button>
+                  {getQuantityInCart(product.id) === 0 ? (
+                    <Button 
+                      onClick={() => handleAddToCart(product)}
+                      className="w-full hover:bg-primary/90 transition-colors"
+                      size="sm"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add to Cart
+                    </Button>
+                  ) : (
+                    <div className="w-full flex items-center justify-between gap-3">
+                      <Button variant="outline" size="sm" onClick={() => decrement(product)}>-</Button>
+                      <div className="flex-1 text-center font-medium">
+                        Qty: {getQuantityInCart(product.id)}
+                      </div>
+                      <Button variant="default" size="sm" onClick={() => increment(product)}>+</Button>
+                    </div>
+                  )}
                 </CardFooter>
               </Card>
             ))}

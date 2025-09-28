@@ -56,6 +56,7 @@ interface Order {
   created_at: string;
   delivery_address: string;
   user_id: string;
+  delivery_person_id?: string | null;
   profiles?: { name: string; email: string } | null;
   order_items?: OrderItem[];
 }
@@ -73,7 +74,7 @@ interface User {
 }
 
 const Admin = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -85,6 +86,11 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState('products');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const deliveryUsers = users.filter(u => u.role === 'delivery' || u.role === 'admin');
+  const [selectedStatusByOrder, setSelectedStatusByOrder] = useState<Record<string, string>>({});
+  const [selectedDeliveryByOrder, setSelectedDeliveryByOrder] = useState<Record<string, string | null>>({});
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
 
   // Product form state
   const [productForm, setProductForm] = useState({
@@ -100,8 +106,9 @@ const Admin = () => {
   const [showProductDialog, setShowProductDialog] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
     checkAdminAccess();
-  }, [user]);
+  }, [user, authLoading]);
 
   const toggleOrderExpansion = (orderId: string) => {
     const newExpandedOrders = new Set(expandedOrders);
@@ -212,6 +219,7 @@ const Admin = () => {
           status,
           created_at,
           delivery_address,
+          delivery_person_id,
           user_id
         `)
         .order('created_at', { ascending: false });
@@ -261,7 +269,14 @@ const Admin = () => {
           })) || []
         }));
 
-        setOrders(ordersWithDetails as unknown as Order[]);
+        const finalOrders = ordersWithDetails as unknown as Order[];
+        setOrders(finalOrders);
+        // Initialize selections for submit controls
+        const initialStatus: Record<string, string> = {};
+        const initialDelivery: Record<string, string | null> = {};
+        finalOrders.forEach(o => { initialStatus[o.id] = o.status; initialDelivery[o.id] = o.delivery_person_id || null; });
+        setSelectedStatusByOrder(initialStatus);
+        setSelectedDeliveryByOrder(initialDelivery);
       } else {
         setOrders([]);
       }
@@ -485,11 +500,64 @@ const Admin = () => {
     }
   };
 
+  const handleAssignDelivery = async (orderId: string, deliveryUserId: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ delivery_person_id: deliveryUserId, status: 'out-for-delivery', estimated_delivery: new Date(Date.now() + 60 * 60 * 1000).toISOString() })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Assigned",
+        description: "Delivery person assigned and order marked out for delivery.",
+      });
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error assigning delivery:', error);
+      toast({
+        title: "Error",
+        description: `Failed to assign delivery: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSubmitOrderChanges = async (orderId: string) => {
+    const status = selectedStatusByOrder[orderId];
+    const deliveryUserId = selectedDeliveryByOrder[orderId] || null;
+    try {
+      const updateData: any = { status };
+      if (deliveryUserId) {
+        updateData.delivery_person_id = deliveryUserId;
+        if (status === 'out-for-delivery') {
+          updateData.estimated_delivery = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        }
+      } else {
+        updateData.delivery_person_id = null;
+      }
+
+      const { error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      toast({ title: 'Saved', description: 'Order changes applied.' });
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error saving order changes:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to save changes', variant: 'destructive' });
+    }
+  };
+
   const handleUpdateUserStatus = async (userId: string, status: string) => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ status })
+        .update({ status } as any)
         .eq('id', userId);
       
       if (error) throw error;
@@ -722,7 +790,73 @@ const Admin = () => {
 
           <TabsContent value="orders" className="space-y-6">
             <h2 className="text-2xl font-semibold">Orders Management</h2>
-            {orders.length === 0 ? (
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-3 md:items-center">
+              {/* Status filter with counts */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Status</span>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-56">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(() => {
+                      const counts = orders.reduce((acc: Record<string, number>, o) => {
+                        acc[o.status] = (acc[o.status] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>);
+                      const total = orders.length;
+                      return (
+                        <>
+                          <SelectItem value="all">All ({total})</SelectItem>
+                          <SelectItem value="pending">Pending ({counts['pending'] || 0})</SelectItem>
+                          <SelectItem value="confirmed">Confirmed ({counts['confirmed'] || 0})</SelectItem>
+                          <SelectItem value="out-for-delivery">Out for Delivery ({counts['out-for-delivery'] || 0})</SelectItem>
+                          <SelectItem value="delivered">Delivered ({counts['delivered'] || 0})</SelectItem>
+                          <SelectItem value="cancelled">Cancelled ({counts['cancelled'] || 0})</SelectItem>
+                        </>
+                      );
+                    })()}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Assignee filter with counts */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Assigned to</span>
+                <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+                  <SelectTrigger className="w-64">
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(() => {
+                      const countsByAssignee = orders.reduce((acc: Record<string, number>, o) => {
+                        if (o.delivery_person_id) acc[o.delivery_person_id] = (acc[o.delivery_person_id] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>);
+                      return (
+                        <>
+                          <SelectItem value="all">All</SelectItem>
+                          {deliveryUsers.map(du => (
+                            <SelectItem key={du.id} value={du.id}>
+                              {(du.name || du.email) + (du.role === 'admin' ? ' (Admin)' : '')} ({countsByAssignee[du.id] || 0})
+                            </SelectItem>
+                          ))}
+                        </>
+                      );
+                    })()}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {(() => {
+              const filtered = orders.filter(o => {
+                const statusOk = statusFilter === 'all' || o.status === statusFilter;
+                const assigneeOk = assigneeFilter === 'all' || o.delivery_person_id === assigneeFilter;
+                return statusOk && assigneeOk;
+              });
+              return filtered.length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
                   <ShoppingBag className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
@@ -732,7 +866,7 @@ const Admin = () => {
               </Card>
             ) : (
               <div className="space-y-4">
-                {orders.map((order) => (
+                {filtered.map((order) => (
                   <Card key={order.id}>
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start mb-4">
@@ -767,7 +901,7 @@ const Admin = () => {
                           )}
                         </div>
                         <div className="text-right">
-                          <p className="text-lg font-bold">₹{order.total_amount.toFixed(2)}</p>
+                          <p className="text-lg font-bold">₹{Number(order.total_amount).toFixed(2)}</p>
                           <Badge 
                             variant={
                               order.status === 'delivered' ? 'default' :
@@ -816,29 +950,50 @@ const Admin = () => {
                         </div>
                       )}
 
-                      <div className="flex space-x-2">
-                        <Select
-                          value={order.status}
-                          onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
-                        >
-                          <SelectTrigger className="w-48">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="confirmed">Confirmed</SelectItem>
-                            <SelectItem value="preparing">Preparing</SelectItem>
-                            <SelectItem value="out-for-delivery">Out for Delivery</SelectItem>
-                            <SelectItem value="delivered">Delivered</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                        <div className="flex gap-2">
+                          <Select
+                            value={selectedStatusByOrder[order.id] ?? order.status}
+                            onValueChange={(value) => setSelectedStatusByOrder(prev => ({ ...prev, [order.id]: value }))}
+                          >
+                            <SelectTrigger className="w-40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="confirmed">Confirmed</SelectItem>
+                              <SelectItem value="out-for-delivery">Out for Delivery</SelectItem>
+                              <SelectItem value="delivered">Delivered</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          {deliveryUsers.length > 0 && (
+                            <Select
+                              value={selectedDeliveryByOrder[order.id] ?? order.delivery_person_id ?? undefined as unknown as string}
+                              onValueChange={(deliveryUserId) => setSelectedDeliveryByOrder(prev => ({ ...prev, [order.id]: deliveryUserId }))}
+                            >
+                              <SelectTrigger className="w-56">
+                                <SelectValue placeholder="Assign delivery person" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {deliveryUsers.map((du) => (
+                                  <SelectItem key={du.id} value={du.id}>
+                                    {(du.name || du.email) + (du.role === 'admin' ? ' (Admin)' : '')}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                        <Button size="sm" onClick={() => handleSubmitOrderChanges(order.id)}>Submit</Button>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
-            )}
+            )
+            })()}
           </TabsContent>
 
           <TabsContent value="issues" className="space-y-6">

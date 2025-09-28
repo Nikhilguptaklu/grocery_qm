@@ -144,6 +144,18 @@ function toast({ ...props }: Toast) {
     });
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
 
+  // Suppress pop-up toasts on small screens (e.g., phones)
+  try {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      // No-op on small screens
+      return {
+        id,
+        dismiss: () => {},
+        update: () => {},
+      } as const;
+    }
+  } catch {}
+
   dispatch({
     type: "ADD_TOAST",
     toast: {

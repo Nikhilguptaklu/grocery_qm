@@ -11,7 +11,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import MappLsMap from '@/components/MappLsMap';
+import AddressPicker from '@/components/AddressPicker';
 
 // ✅ Helper for INR formatting
 const formatPrice = (amount: number) => {
@@ -24,14 +24,13 @@ const formatPrice = (amount: number) => {
 
 const Checkout = () => {
   const { cartItems, clearCart, getCartTotal } = useCart();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [coordinates, setCoordinates] = useState<[number, number] | null>(null);
-  const [useCurrentLocation, setUseCurrentLocation] = useState(false);
-  const [manualAddress, setManualAddress] = useState(false);
 
   const [address, setAddress] = useState({
     street: '',
@@ -49,6 +48,7 @@ const Checkout = () => {
 
   // Redirect if user not logged in or cart empty
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       toast({
         title: "Please log in",
@@ -62,36 +62,16 @@ const Checkout = () => {
       navigate('/cart');
       return;
     }
-  }, [user, cartItems, navigate, toast]);
+  }, [user, authLoading, cartItems, navigate, toast]);
 
-  // Get current location
-  const getCurrentLocation = () => {
-    setIsGettingLocation(true);
-    if (!navigator.geolocation) {
-      toast({
-        title: "Geolocation not supported",
-        description: "Your browser doesn't support geolocation.",
-        variant: "destructive",
-      });
-      setIsGettingLocation(false);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const coords: [number, number] = [position.coords.longitude, position.coords.latitude];
-        setCoordinates(coords);
-        setIsGettingLocation(false);
-      },
-      () => {
-        toast({
-          title: "Location access denied",
-          description: "Please allow location access or enter address manually.",
-          variant: "destructive",
-        });
-        setIsGettingLocation(false);
-      }
-    );
+  // AddressPicker onSave handler
+  const handlePickAddress = (data: { lat: number; lon: number; address: string }) => {
+    setCoordinates([data.lon, data.lat]);
+    setAddress(prev => ({
+      ...prev,
+      street: data.address,
+    }));
+    setCurrentStep(2);
   };
 
   // Place order
@@ -118,6 +98,9 @@ const Checkout = () => {
           total_amount: getCartTotal() * 1.1,
           status: 'confirmed',
           delivery_address: fullAddress,
+          // store coords if available
+          delivery_lat: coordinates ? coordinates[1] : null,
+          delivery_lon: coordinates ? coordinates[0] : null,
           payment_method: paymentMethod,
           delivery_notes: `${deliveryNotes} | Alt Phone: ${address.alternatePhone}`
         })
@@ -170,76 +153,70 @@ const Checkout = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Checkout Form */}
           <div className="space-y-6">
+            {/* Step 1: Choose Location */
+            }
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <MapPin className="w-5 h-5" />
-                  <span>Delivery Address</span>
+                  <span>Delivery Location</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-col sm:flex-row gap-2 mb-4">
-                  <Button
-                    type="button"
-                    variant={useCurrentLocation ? "default" : "outline"}
-                    onClick={() => { setUseCurrentLocation(true); setManualAddress(false); getCurrentLocation(); }}
-                    disabled={isGettingLocation}
-                    className="flex-1"
-                  >
-                    <Navigation className="w-4 h-4 mr-2" />
-                    {isGettingLocation ? 'Getting...' : 'Use Current Location'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={manualAddress ? "default" : "outline"}
-                    onClick={() => { setManualAddress(true); setUseCurrentLocation(false); }}
-                    className="flex-1"
-                  >
-                    <MapPin className="w-4 h-4 mr-2" />
-                    Manual Address
-                  </Button>
-                </div>
-
-                {useCurrentLocation && (
-                  <MappLsMap onLocationSelect={setCoordinates} initialCoordinates={coordinates || undefined} />
-                )}
-
-                <Input placeholder="Street" value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input placeholder="City" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
-                  <Input placeholder="State" value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input placeholder="ZIP Code" value={address.zipCode} onChange={(e) => setAddress({ ...address, zipCode: e.target.value })} />
-                  <Input placeholder="Phone" value={address.phone} onChange={(e) => setAddress({ ...address, phone: e.target.value })} />
-                </div>
-                <Input placeholder="Landmark (e.g. Near SBI Bank)" value={address.landmark} onChange={(e) => setAddress({ ...address, landmark: e.target.value })} />
-                <Input placeholder="Alternate Phone Number" value={address.alternatePhone} onChange={(e) => setAddress({ ...address, alternatePhone: e.target.value })} />
-
-                <Textarea placeholder="Delivery Notes (Optional)" value={deliveryNotes} onChange={(e) => setDeliveryNotes(e.target.value)} rows={3} />
+                <div className="text-sm text-muted-foreground">Drag the pin or search to set your delivery location. You can also use your current GPS location.</div>
+                <AddressPicker onSave={handlePickAddress} />
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <CreditCard className="w-5 h-5" />
-                  <span>Payment Method</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="card" id="card" />
-                    <Label htmlFor="card">Credit/Debit Card</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="cash" id="cash" />
-                    <Label htmlFor="cash">Cash on Delivery</Label>
-                  </div>
-                </RadioGroup>
-              </CardContent>
-            </Card>
+            {/* Step 2: Address & Payment */}
+            {currentStep === 2 && (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <MapPin className="w-5 h-5" />
+                      <span>Delivery Address</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Input placeholder="Street" value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Input placeholder="City" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
+                      <Input placeholder="State" value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Input placeholder="ZIP Code" value={address.zipCode} onChange={(e) => setAddress({ ...address, zipCode: e.target.value })} />
+                      <Input placeholder="Phone" value={address.phone} onChange={(e) => setAddress({ ...address, phone: e.target.value })} />
+                    </div>
+                    <Input placeholder="Landmark (e.g. Near SBI Bank)" value={address.landmark} onChange={(e) => setAddress({ ...address, landmark: e.target.value })} />
+                    <Input placeholder="Alternate Phone Number" value={address.alternatePhone} onChange={(e) => setAddress({ ...address, alternatePhone: e.target.value })} />
+
+                    <Textarea placeholder="Delivery Notes (Optional)" value={deliveryNotes} onChange={(e) => setDeliveryNotes(e.target.value)} rows={3} />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <CreditCard className="w-5 h-5" />
+                      <span>Payment Method</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="card" id="card" />
+                        <Label htmlFor="card">Credit/Debit Card</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="cash" id="cash" />
+                        <Label htmlFor="cash">Cash on Delivery</Label>
+                      </div>
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </div>
 
           {/* Order Summary */}

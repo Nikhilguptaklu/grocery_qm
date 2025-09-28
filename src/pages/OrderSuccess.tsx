@@ -179,7 +179,7 @@ const OrderSuccess = () => {
                     </div>
                   </div>
                   <span className="font-medium">
-                    ${(item.price * item.quantity).toFixed(2)}
+                    ₹{(item.price * item.quantity).toFixed(2)}
                   </span>
                 </div>
               ))}
@@ -188,7 +188,7 @@ const OrderSuccess = () => {
             <div className="border-t pt-4 mt-4">
               <div className="flex justify-between text-lg font-semibold">
                 <span>Total Amount</span>
-                <span>${order.total_amount.toFixed(2)}</span>
+                <span>₹{Number(order.total_amount).toFixed(2)}</span>
               </div>
             </div>
           </CardContent>
