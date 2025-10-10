@@ -113,8 +113,8 @@ const Category = () => {
   // Prepare a JSON-LD safe products array (some DB fields like description/stock may be missing from Product type)
   const ldProducts = products.map(p => {
     const image = p.image
-      ? (p.image.startsWith && (p.image as string).startsWith('http') ? p.image : `https://hnmart.com${(p.image as string).startsWith('/') ? p.image : '/' + p.image}`)
-      : 'https://hnmart.com/favicon.ico';
+      ? (p.image.startsWith && (p.image as string).startsWith('http') ? p.image : `https://hnmart.in${(p.image as string).startsWith('/') ? p.image : '/' + p.image}`)
+      : 'https://hnmart.in/favicon.ico';
 
     const anyP = p as any;
     return {
@@ -134,14 +134,14 @@ const Category = () => {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>{`${categoryTitle} | HN Mart`}</title>
-        <link rel="canonical" href={`https://hnmart.com/category/${categoryId}`} />
+  <link rel="canonical" href={`https://hnmart.in/category/${categoryId}`} />
         <meta name="description" content={`Shop ${categoryTitle} at HN Mart. Fresh groceries, best prices, fast delivery.`} />
         <meta name="keywords" content={`hnmart, ${categoryTitle.toLowerCase()}, grocery, online shopping, delivery`} />
         <meta property="og:title" content={`${categoryTitle} | HN Mart`} />
         <meta property="og:description" content={`Shop ${categoryTitle} at HN Mart. Fresh groceries, best prices, fast delivery.`} />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="/favicon.ico" />
-        <meta property="og:url" content={`https://hnmart.com/category/${categoryId}`} />
+  <meta property="og:url" content={`https://hnmart.in/category/${categoryId}`} />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
@@ -212,70 +212,73 @@ const Category = () => {
 
         {/* Products Grid */}
         {loading ? (
-          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
             {[...Array(6)].map((_, index) => (
               <Card key={index} className="animate-pulse">
-                <div className="h-48 bg-muted rounded-t-lg" />
-                <CardContent className="p-4">
-                  <div className="h-4 bg-muted rounded mb-2" />
-                  <div className="h-6 bg-muted rounded w-20" />
+                <div className="h-32 sm:h-40 md:h-48 bg-muted rounded-t-lg" />
+                <CardContent className="p-2 sm:p-4">
+                  <div className="h-3 sm:h-4 bg-muted rounded mb-2" />
+                  <div className="h-4 sm:h-6 bg-muted rounded w-16 sm:w-20" />
                 </CardContent>
-                <CardFooter className="p-4 pt-0">
-                  <div className="h-8 bg-muted rounded w-full" />
+                <CardFooter className="p-2 sm:p-4 pt-0">
+                  <div className="h-6 sm:h-8 bg-muted rounded w-full" />
                 </CardFooter>
               </Card>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
             {products.filter(product => product.name.toLowerCase().includes(search.toLowerCase())).map((product, index) => (
               <Card 
                 key={product.id} 
-                className="aspect-square flex flex-col justify-between hover:shadow-medium transition-all duration-300 transform hover:-translate-y-1 animate-fade-up p-1 sm:p-2"
-                style={{ animationDelay: `${index * 50}ms`, maxWidth: '120px', minWidth: '100px' }}
+                className="flex flex-col justify-between hover:shadow-medium transition-all duration-300 transform hover:-translate-y-1 animate-fade-up"
+                style={{ animationDelay: `${index * 50}ms` }}
               >
                 <CardHeader className="p-0 flex-0">
                   <div className="relative overflow-hidden rounded-t-lg aspect-square">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105 absolute inset-0"
-                      style={{ aspectRatio: '1/1' }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    <Link to={`/product/${product.id}`} className="absolute inset-0">
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105 absolute inset-0"
+                        style={{ aspectRatio: '1/1' }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    </Link>
                   </div>
                 </CardHeader>
-                <CardContent className="p-1 flex-1 flex flex-col justify-center items-center">
-                  <CardTitle className="text-[13px] font-semibold text-foreground mb-1 line-clamp-2 text-center">
-                    {product.name}
+                <CardContent className="p-2 sm:p-3 flex-1 flex flex-col justify-center items-center">
+                  <CardTitle className="text-xs sm:text-sm font-semibold text-foreground mb-1 line-clamp-2 text-center">
+                    <Link to={`/product/${product.id}`}>{product.name}</Link>
                   </CardTitle>
                   {product.unit && (
                     <span className="text-xs text-muted-foreground mb-1">
                       {product.unit}
                     </span>
                   )}
-                  <span className="text-base font-bold text-primary">
+                  <span className="text-sm sm:text-base font-bold text-primary">
                     {`₹${Number(product.price).toFixed(2)}`}
                     {product.unit && <span className="text-xs text-muted-foreground ml-1">/ {product.unit}</span>}
                   </span>
                 </CardContent>
-                <CardFooter className="p-1 pt-0 flex-0">
+                <CardFooter className="p-2 sm:p-3 pt-0 flex-0">
                   {getQuantityInCart(product.id) === 0 ? (
                     <Button 
                       onClick={() => handleAddToCart(product)}
-                      className="w-full hover:bg-primary/90 transition-colors"
+                      className="w-full hover:bg-primary/90 transition-colors text-xs sm:text-sm"
                       size="sm"
                     >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add to Cart
+                      <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">Add to Cart</span>
+                      <span className="sm:hidden">Add</span>
                     </Button>
                   ) : (
-                    <div className="w-full flex items-center justify-between gap-2">
-                      <Button variant="outline" size="sm" onClick={() => decrement(product)}>-</Button>
-                      <div className="flex-1 text-center font-medium text-xs">
+                    <div className="w-full flex items-center justify-between gap-1 sm:gap-2">
+                      <Button variant="outline" size="sm" onClick={() => decrement(product)} className="text-xs sm:text-sm px-2 sm:px-3">-</Button>
+                      <div className="flex-1 text-center font-medium text-xs sm:text-sm">
                         Qty: {getQuantityInCart(product.id)}
                       </div>
-                      <Button variant="default" size="sm" onClick={() => increment(product)}>+</Button>
+                      <Button variant="default" size="sm" onClick={() => increment(product)} className="text-xs sm:text-sm px-2 sm:px-3">+</Button>
                     </div>
                   )}
                 </CardFooter>

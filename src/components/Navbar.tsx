@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  ShoppingCart, User, Home, LogIn, UserPlus, LogOut, Shield, Truck, Info, Menu 
+  ShoppingCart, User, Home, LogIn, UserPlus, LogOut, Shield, Truck, Info, Menu, Mail
 } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -109,6 +109,18 @@ const Navbar = () => {
             >
               <Info className="w-4 h-4" />
               <span>About Us</span>
+            </Link>
+
+            <Link
+              to="/contact"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-lg font-medium transition-colors ${
+                isActive('/contact') 
+                  ? 'bg-accent text-accent-foreground' 
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              <Mail className="w-4 h-4" />
+              <span>Contact Us</span>
             </Link>
 
             <Link to="/cart">
@@ -250,6 +262,19 @@ const Navbar = () => {
             >
               <Info className="w-4 h-4" />
               <span>About Us</span>
+            </Link>
+
+            <Link
+              to="/contact"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-lg ${
+                isActive('/contact') 
+                  ? 'bg-accent text-accent-foreground' 
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <Mail className="w-4 h-4" />
+              <span>Contact Us</span>
             </Link>
 
             <Link to="/cart" onClick={() => setIsMobileMenuOpen(false)}>

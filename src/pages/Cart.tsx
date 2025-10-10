@@ -92,7 +92,7 @@ const Cart = () => {
           <meta property="og:description" content="View and manage your cart at HN Mart. Fast checkout, best prices, fresh groceries." />
           <meta property="og:type" content="website" />
           <meta property="og:image" content="/public/favicon.ico" />
-          <meta property="og:url" content="https://hnmart.com/cart" />
+          <meta property="og:url" content="https://hnmart.in/cart" />
         </Helmet>
         <div className="max-w-4xl mx-auto py-8">
           <div className="flex flex-col sm:flex-row items-center sm:space-x-4 mb-8 text-center sm:text-left">
@@ -135,7 +135,7 @@ const Cart = () => {
         <meta property="og:description" content="View and manage your cart at HN Mart. Fast checkout, best prices, fresh groceries." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="/public/favicon.ico" />
-        <meta property="og:url" content="https://hnmart.com/cart" />
+  <meta property="og:url" content="https://hnmart.in/cart" />
       </Helmet>
       <div className="max-w-6xl mx-auto py-8">
         {/* Header */}

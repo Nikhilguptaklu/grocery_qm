@@ -14,7 +14,7 @@ export default function About() {
         <meta property="og:description" content="Learn about HN Mart, your trusted online grocery store for fresh groceries, fast delivery, and great prices. Discover our mission, vision, and team." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="/public/favicon.ico" />
-        <meta property="og:url" content="https://hnmart.com/aboutus" />
+  <meta property="og:url" content="https://hnmart.in/aboutus" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@hnmart" />
         <meta name="twitter:title" content="About HN Mart - Your Trusted Grocery Partner" />
@@ -22,13 +22,14 @@ export default function About() {
         <meta name="twitter:image" content="/public/favicon.ico" />
       </Helmet>
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-primary to-secondary text-white py-20">
-        <div className="max-w-5xl mx-auto px-6 text-center">
+      <section className="relative min-h-[50vh] bg-cover bg-center bg-no-repeat text-white" style={{ backgroundImage: `url('/src/assets/aboutus.jpg')` }}>
+        <div className="absolute inset-0 bg-black/50"></div>
+        <div className="relative max-w-5xl mx-auto px-6 py-20 text-center">
           <h1 className="text-4xl sm:text-5xl font-bold mb-4">
-            About <span className="text-yellow-300">QuickMart</span>
+            About <span className="text-yellow-300">HN Mart</span>
           </h1>
           <p className="text-lg sm:text-xl max-w-2xl mx-auto opacity-90">
-            QuickMart is your trusted online shopping destination — bringing 
+            HN Mart is your trusted online shopping destination — bringing 
             quality products, fast delivery, and great prices to your doorstep.
           </p>
         </div>
@@ -47,7 +48,7 @@ export default function About() {
         <div>
           <h2 className="text-2xl font-bold mb-4">Our Vision</h2>
           <p className="text-muted-foreground leading-relaxed">
-            We envision QuickMart as the go-to marketplace for every 
+            We envision HN Mart as the go-to marketplace for every 
             household need, offering products across categories 
             with the fastest and most reliable delivery system.
           </p>
@@ -104,9 +105,9 @@ export default function About() {
         className="w-56 h-56 object-cover rounded-full shadow-lg mb-6"
       />
       <h3 className="text-2xl font-semibold">Nikhil Gupta</h3>
-      <p className="text-muted-foreground text-sm mb-4">CEO, QuickMart</p>
+          <p className="text-muted-foreground text-sm mb-4">CEO, HN Mart</p>
       <p className="max-w-md text-muted-foreground leading-relaxed">
-        Nikhil Gupta started QuickMart with a vision to revolutionize shopping. 
+        Nikhil Gupta started HN Mart with a vision to revolutionize shopping. 
         With a background in technology and retail, he leads with innovation, 
         trust, and customer-first values.
       </p>
@@ -120,9 +121,9 @@ export default function About() {
         className="w-56 h-56 object-cover rounded-full shadow-lg mb-6"
       />
       <h3 className="text-2xl font-semibold">Harshita Tiwari</h3>
-      <p className="text-muted-foreground text-sm mb-4">Founder, QuickMart</p>
+  <p className="text-muted-foreground text-sm mb-4">Founder, HN Mart</p>
       <p className="max-w-md text-muted-foreground leading-relaxed">
-        Harshita laid the foundation of QuickMart with passion and dedication. 
+  Harshita laid the foundation of HN Mart with passion and dedication. 
         She brings creativity and a customer-first mindset, ensuring the company 
         always delivers value and quality.
       </p>
@@ -135,7 +136,7 @@ export default function About() {
       <section className="max-w-6xl mx-auto px-6 py-20 text-center">
         <h2 className="text-3xl font-bold mb-6">We’re More Than Just a Store</h2>
         <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
-          QuickMart is built by a passionate team that believes shopping should 
+          HN Mart is built by a passionate team that believes shopping should 
           be effortless, enjoyable, and affordable for everyone.
         </p>
         <a

@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Users, Package, MessageSquare, ShoppingBag, ChevronDown, ChevronUp, CreditCard } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Package, MessageSquare, ShoppingBag, ChevronDown, ChevronUp, CreditCard, Truck } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -92,6 +92,15 @@ interface Coupon {
   created_at: string;
 }
 
+interface DeliverySettings {
+  id: string;
+  free_delivery_threshold: number;
+  delivery_fee: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 const Admin = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -102,6 +111,7 @@ const Admin = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [deliverySettings, setDeliverySettings] = useState<DeliverySettings[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('products');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -139,6 +149,15 @@ const Admin = () => {
   });
   const [editingCoupon, setEditingCoupon] = useState<string | null>(null);
   const [showCouponDialog, setShowCouponDialog] = useState(false);
+
+  // Delivery settings form state
+  const [deliveryForm, setDeliveryForm] = useState({
+    free_delivery_threshold: '',
+    delivery_fee: '',
+    is_active: true
+  });
+  const [editingDelivery, setEditingDelivery] = useState<string | null>(null);
+  const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -345,6 +364,18 @@ const Admin = () => {
         console.error('Coupons fetch error:', couponsError);
       } else {
   setCoupons((couponsData as unknown as Coupon[]) || []);
+      }
+
+      // Fetch delivery settings
+      const { data: deliveryData, error: deliveryError } = await supabase
+        .from('delivery_settings')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (deliveryError) {
+        console.error('Delivery settings fetch error:', deliveryError);
+      } else {
+        setDeliverySettings((deliveryData as unknown as DeliverySettings[]) || []);
       }
 
     } catch (error) {
@@ -759,6 +790,100 @@ const Admin = () => {
     }
   };
 
+  // Delivery settings management functions
+  const resetDeliveryForm = () => {
+    setDeliveryForm({
+      free_delivery_threshold: '',
+      delivery_fee: '',
+      is_active: true
+    });
+    setEditingDelivery(null);
+  };
+
+  const handleDeliverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      if (!deliveryForm.free_delivery_threshold || !deliveryForm.delivery_fee) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all required fields.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const deliveryData = {
+        free_delivery_threshold: parseFloat(deliveryForm.free_delivery_threshold),
+        delivery_fee: parseFloat(deliveryForm.delivery_fee),
+        is_active: deliveryForm.is_active
+      };
+
+      let error;
+      if (editingDelivery) {
+        const { error: updateError } = await supabase
+          .from('delivery_settings')
+          .update(deliveryData)
+          .eq('id', editingDelivery);
+        error = updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('delivery_settings')
+          .insert([deliveryData]);
+        error = insertError;
+      }
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Delivery settings ${editingDelivery ? 'updated' : 'created'} successfully.`,
+      });
+
+      resetDeliveryForm();
+      setShowDeliveryDialog(false);
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error saving delivery settings:', error);
+      toast({
+        title: "Error",
+        description: `Failed to save delivery settings: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteDelivery = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this delivery setting?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('delivery_settings')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Delivery setting deleted successfully.",
+      });
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error deleting delivery setting:', error);
+      toast({
+        title: "Error",
+        description: `Failed to delete delivery setting: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -780,7 +905,7 @@ const Admin = () => {
         <meta property="og:description" content="Manage products, orders, coupons, and users at HN Mart. Admin dashboard for grocery store management." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="/public/favicon.ico" />
-        <meta property="og:url" content="https://hnmart.com/admin" />
+  <meta property="og:url" content="https://hnmart.in/admin" />
       </Helmet>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
@@ -789,7 +914,7 @@ const Admin = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="products" className="flex items-center space-x-2">
               <Package className="w-4 h-4" />
               <span>Products ({products.length})</span>
@@ -801,6 +926,10 @@ const Admin = () => {
             <TabsTrigger value="coupons" className="flex items-center space-x-2">
               <CreditCard className="w-4 h-4" />
               <span>Coupons ({coupons.length})</span>
+            </TabsTrigger>
+            <TabsTrigger value="delivery" className="flex items-center space-x-2">
+              <Truck className="w-4 h-4" />
+              <span>Delivery ({deliverySettings.length})</span>
             </TabsTrigger>
             <TabsTrigger value="issues" className="flex items-center space-x-2">
               <MessageSquare className="w-4 h-4" />
@@ -1440,6 +1569,145 @@ const Admin = () => {
                           size="sm"
                           variant="destructive"
                           onClick={() => handleDeleteCoupon(coupon.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="delivery" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-semibold">Delivery Fee Management</h2>
+              <Dialog open={showDeliveryDialog} onOpenChange={setShowDeliveryDialog}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => resetDeliveryForm()}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Delivery Setting
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingDelivery ? 'Edit Delivery Setting' : 'Add New Delivery Setting'}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleDeliverySubmit} className="space-y-4">
+                    <div>
+                      <Label htmlFor="free_delivery_threshold">Free Delivery Threshold (₹) *</Label>
+                      <Input
+                        id="free_delivery_threshold"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={deliveryForm.free_delivery_threshold}
+                        onChange={(e) => setDeliveryForm({...deliveryForm, free_delivery_threshold: e.target.value})}
+                        required
+                        placeholder="500.00"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Orders above this amount get free delivery
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="delivery_fee">Delivery Fee (₹) *</Label>
+                      <Input
+                        id="delivery_fee"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={deliveryForm.delivery_fee}
+                        onChange={(e) => setDeliveryForm({...deliveryForm, delivery_fee: e.target.value})}
+                        required
+                        placeholder="50.00"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Standard delivery fee for orders below threshold
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        id="is_active"
+                        type="checkbox"
+                        checked={deliveryForm.is_active}
+                        onChange={(e) => setDeliveryForm({...deliveryForm, is_active: e.target.checked})}
+                        className="w-4 h-4 text-primary border-border rounded focus:ring-ring"
+                      />
+                      <Label htmlFor="is_active">Active</Label>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      {isSubmitting ? 'Saving...' : (editingDelivery ? 'Update Setting' : 'Add Setting')}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {deliverySettings.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Truck className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No delivery settings found</h3>
+                  <p className="text-muted-foreground mb-4">Start by adding your first delivery setting to manage delivery fees.</p>
+                  <Button onClick={() => setShowDeliveryDialog(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Your First Delivery Setting
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {deliverySettings.map((setting) => (
+                  <Card key={setting.id}>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-semibold text-lg mb-1">Delivery Setting</h3>
+                          <Badge variant={setting.is_active ? 'default' : 'secondary'}>
+                            {setting.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 mb-4">
+                        <div className="flex justify-between text-sm">
+                          <span>Free Delivery Threshold:</span>
+                          <span className="font-medium">₹{setting.free_delivery_threshold}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Delivery Fee:</span>
+                          <span className="font-medium">₹{setting.delivery_fee}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-2">
+                          Orders above ₹{setting.free_delivery_threshold} get free delivery, 
+                          otherwise ₹{setting.delivery_fee} delivery fee applies.
+                        </div>
+                      </div>
+
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setDeliveryForm({
+                              free_delivery_threshold: setting.free_delivery_threshold.toString(),
+                              delivery_fee: setting.delivery_fee.toString(),
+                              is_active: setting.is_active
+                            });
+                            setEditingDelivery(setting.id);
+                            setShowDeliveryDialog(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteDelivery(setting.id)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

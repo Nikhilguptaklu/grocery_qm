@@ -252,7 +252,7 @@ const Delivery = () => {
         <meta property="og:title" content="Delivery Dashboard - HN Mart" />
         <meta property="og:description" content="Delivery dashboard to manage and track orders for HN Mart. Accept and update delivery statuses in real-time." />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://hnmart.com/delivery" />
+  <meta property="og:url" content="https://hnmart.in/delivery" />
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content="Delivery Dashboard - HN Mart" />
         <meta name="twitter:description" content="Delivery dashboard to manage and track orders for HN Mart." />
@@ -262,7 +262,7 @@ const Delivery = () => {
             "@type": "WebPage",
             "name": "Delivery Dashboard - HN Mart",
             "description": "Manage and track delivery orders for HN Mart.",
-            "url": "https://hnmart.com/delivery"
+            "url": "https://hnmart.in/delivery"
           }`}
         </script>
       </Helmet>

@@ -58,6 +58,10 @@ const Checkout = () => {
   const [couponError, setCouponError] = useState('');
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
+  // Delivery fee state
+  const [deliverySettings, setDeliverySettings] = useState<any>(null);
+  const [deliveryFee, setDeliveryFee] = useState(0);
+
   // Redirect if user not logged in or cart empty
   useEffect(() => {
     if (authLoading) return;
@@ -76,7 +80,7 @@ const Checkout = () => {
     }
   }, [user, authLoading, cartItems, navigate, toast]);
 
-  // Fetch previous addresses
+  // Fetch previous addresses and delivery settings
   useEffect(() => {
     const fetchPreviousAddresses = async () => {
       if (!user) return;
@@ -96,9 +100,34 @@ const Checkout = () => {
       }
     };
 
+    const fetchDeliverySettings = async () => {
+      try {
+        console.log('Fetching delivery settings...');
+        const { data, error } = await (supabase as any)
+          .from('delivery_settings')
+          .select('*')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+          console.error('Error fetching delivery settings:', error);
+        } else if (data) {
+          console.log('Delivery settings fetched:', data);
+          setDeliverySettings(data);
+        } else {
+          console.log('No delivery settings found');
+        }
+      } catch (error) {
+        console.error('Error fetching delivery settings:', error);
+      }
+    };
+
     if (user) {
       fetchPreviousAddresses();
     }
+    fetchDeliverySettings();
   }, [user]);
 
   // AddressPicker onSave handler
@@ -209,6 +238,42 @@ const Checkout = () => {
     return Math.min(discount, cartTotal); // Don't discount more than cart total
   };
 
+  // Calculate delivery fee
+  const calculateDeliveryFee = () => {
+    if (!deliverySettings) {
+      console.log('No delivery settings found, using default fee of ₹50');
+      return 50; // Default delivery fee if no settings found
+    }
+    
+    const cartTotal = getCartTotal();
+    const discount = calculateDiscount();
+    const finalAmount = cartTotal - discount;
+    
+    console.log('Delivery calculation:', {
+      cartTotal,
+      discount,
+      finalAmount,
+      threshold: deliverySettings.free_delivery_threshold,
+      deliveryFee: deliverySettings.delivery_fee
+    });
+    
+    // If order amount is above threshold, delivery is free
+    if (finalAmount >= deliverySettings.free_delivery_threshold) {
+      console.log('Free delivery applied');
+      return 0;
+    }
+    
+    // Otherwise, apply delivery fee
+    console.log('Delivery fee applied:', deliverySettings.delivery_fee);
+    return deliverySettings.delivery_fee;
+  };
+
+  // Update delivery fee when cart or settings change
+  useEffect(() => {
+    const fee = calculateDeliveryFee();
+    setDeliveryFee(fee);
+  }, [deliverySettings, cartItems, appliedCoupon]);
+
   // Place order
   const handlePlaceOrder = async () => {
     if (!user) return;
@@ -237,7 +302,8 @@ const Checkout = () => {
       const fullAddress = `${address.street}, ${address.city}, ${address.state} ${address.zipCode}, Landmark: ${address.landmark}`;
       const cartTotal = getCartTotal();
       const discount = calculateDiscount();
-      const finalAmount = (cartTotal - discount) * 1.1; // Apply tax after discount
+      const deliveryFeeAmount = calculateDeliveryFee();
+      const finalAmount = (cartTotal - discount + deliveryFeeAmount) * 1.1; // Apply tax after discount and delivery fee
 
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -252,7 +318,8 @@ const Checkout = () => {
           payment_method: paymentMethod,
           delivery_notes: `${deliveryNotes} | Alt Phone: ${address.alternatePhone}`,
           coupon_code: appliedCoupon?.code || null,
-          discount_amount: discount
+          discount_amount: discount,
+          delivery_fee: deliveryFeeAmount
         })
         .select()
         .single();
@@ -303,7 +370,7 @@ const Checkout = () => {
         <meta property="og:title" content="Checkout - HN Mart" />
         <meta property="og:description" content="Secure checkout for HN Mart. Review your order, choose delivery and payment options, and place your order quickly and securely." />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://hnmart.com/checkout" />
+  <meta property="og:url" content="https://hnmart.in/checkout" />
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content="Checkout - HN Mart" />
         <meta name="twitter:description" content="Secure checkout for HN Mart. Review your order and place it quickly." />
@@ -313,7 +380,7 @@ const Checkout = () => {
             "@type": "WebPage",
             "name": "Checkout - HN Mart",
             "description": "Secure checkout for HN Mart.",
-            "url": "https://hnmart.com/checkout"
+            "url": "https://hnmart.in/checkout"
           }`}
         </script>
       </Helmet>
@@ -562,16 +629,28 @@ const Checkout = () => {
                 )}
                 <div className="flex justify-between">
                   <span>Delivery Fee</span>
-                  <span className="text-success">Free</span>
+                  <span className={deliveryFee === 0 ? "text-success" : ""}>
+                    {deliveryFee === 0 ? "Free" : formatPrice(deliveryFee)}
+                  </span>
                 </div>
+                {deliverySettings && deliveryFee > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    Add ₹{deliverySettings.free_delivery_threshold - (getCartTotal() - calculateDiscount())} more for free delivery
+                  </div>
+                )}
+                {!deliverySettings && (
+                  <div className="text-xs text-muted-foreground">
+                    Using default delivery fee
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Tax</span>
-                  <span>{formatPrice((getCartTotal() - calculateDiscount()) * 0.1)}</span>
+                  <span>{formatPrice((getCartTotal() - calculateDiscount() + deliveryFee) * 0.1)}</span>
                 </div>
                 <hr />
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Total</span>
-                  <span>{formatPrice((getCartTotal() - calculateDiscount()) * 1.1)}</span>
+                  <span>{formatPrice((getCartTotal() - calculateDiscount() + deliveryFee) * 1.1)}</span>
                 </div>
                 <Button onClick={handlePlaceOrder} className="w-full mt-6" size="lg" disabled={isProcessing}>
                   {isProcessing ? 'Processing...' : 'Place Order'}

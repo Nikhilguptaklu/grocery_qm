@@ -12,7 +12,7 @@ const Index = () => {
         <meta property="og:description" content="Welcome to HN Mart. Start building your amazing grocery shopping experience here!" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="/public/favicon.ico" />
-        <meta property="og:url" content="https://hnmart.com" />
+  <meta property="og:url" content="https://hnmart.in" />
       </Helmet>
       <div className="text-center">
         <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>

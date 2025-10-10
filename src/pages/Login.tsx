@@ -16,17 +16,18 @@ const Login = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -45,7 +46,7 @@ const Login = () => {
       } else {
         toast({
           title: "Login successful!",
-          description: "Welcome back to QuickMart.",
+          description: "Welcome back to HN Mart.",
         });
         navigate('/');
       }
@@ -60,18 +61,35 @@ const Login = () => {
     }
   };
 
+  // ⭐ Google Login Function
+  const handleGoogleLogin = async () => {
+    try {
+      setGoogleLoading(true);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin, // Redirect to your homepage after login
+        },
+      });
+      if (error) throw error;
+    } catch (error) {
+      toast({
+        title: "Google login failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <Helmet>
         <title>Login - HN Mart</title>
         <meta name="description" content="Sign in to your HN Mart account to manage orders, addresses and payments." />
-        <meta property="og:title" content="Login - HN Mart" />
-        <meta property="og:description" content="Sign in to your HN Mart account to manage orders and addresses." />
-        <meta property="og:url" content="https://hnmart.com/login" />
-        <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content="Login - HN Mart" />
-        <meta name="twitter:description" content="Sign in to your HN Mart account." />
       </Helmet>
+
       <div className="w-full max-w-md space-y-8">
         {/* Header */}
         <div className="text-center">
@@ -82,7 +100,7 @@ const Login = () => {
           </div>
           <h2 className="text-3xl font-bold text-foreground">Welcome back</h2>
           <p className="mt-2 text-muted-foreground">
-            Sign in to your QuickMart account
+            Sign in to your HN Mart account
           </p>
         </div>
 
@@ -158,22 +176,15 @@ const Login = () => {
                     Remember me
                   </Label>
                 </div>
-                <Link 
-                  to="/forgot-password" 
-                  className="text-sm text-primary hover:underline"
-                >
+                <Link to="/forgot-password" className="text-sm text-primary hover:underline">
                   Forgot password?
                 </Link>
               </div>
             </CardContent>
 
             <CardFooter className="flex flex-col space-y-4">
-              <Button 
-                type="submit" 
-                className="w-full" 
-                size="lg"
-                disabled={isLoading}
-              >
+              {/* Normal Login Button */}
+              <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
                 {isLoading ? (
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
@@ -183,6 +194,24 @@ const Login = () => {
                   <>
                     <LogIn className="w-4 h-4 mr-2" />
                     Sign in
+                  </>
+                )}
+              </Button>
+
+              {/* ⭐ Google Login Button */}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full flex items-center justify-center space-x-2"
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+              >
+                {googleLoading ? (
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <img src="https://www.svgrepo.com/show/355037/google.svg" alt="Google" className="w-5 h-5" />
+                    <span>Sign in with Google</span>
                   </>
                 )}
               </Button>
@@ -206,7 +235,7 @@ const Login = () => {
                 Use these credentials to test the application:
               </p>
               <div className="space-y-1 text-xs text-muted-foreground">
-                <p><strong>Email:</strong> demo@quickmart.com</p>
+                <p><strong>Email:</strong> demo@hnmart.in</p>
                 <p><strong>Password:</strong> demo123</p>
               </div>
             </div>

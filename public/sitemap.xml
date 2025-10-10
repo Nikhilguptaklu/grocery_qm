@@ -1,48 +1,63 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://hnmart.com/</loc>
+  <loc>https://hnmart.in/</loc>
     <lastmod>2025-10-10</lastmod>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://hnmart.com/category/all</loc>
+  <loc>https://hnmart.in/category/all</loc>
     <lastmod>2025-10-10</lastmod>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://hnmart.com/category/grocery</loc>
+  <loc>https://hnmart.in/category/grocery</loc>
     <lastmod>2025-10-10</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://hnmart.com/category/vegetables</loc>
+  <loc>https://hnmart.in/category/vegetables</loc>
     <lastmod>2025-10-10</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://hnmart.com/category/fruits</loc>
+  <loc>https://hnmart.in/category/fruits</loc>
     <lastmod>2025-10-10</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://hnmart.com/category/cold-drinks</loc>
+  <loc>https://hnmart.in/category/cold-drinks</loc>
     <lastmod>2025-10-10</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://hnmart.com/cart</loc>
+  <loc>https://hnmart.in/cart</loc>
     <lastmod>2025-10-10</lastmod>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://hnmart.com/aboutus</loc>
+  <loc>https://hnmart.in/aboutus</loc>
     <lastmod>2025-10-10</lastmod>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://hnmart.com/admin</loc>
+  <loc>https://hnmart.in/admin</loc>
     <lastmod>2025-10-10</lastmod>
     <priority>0.5</priority>
+  </url>
+  <url>
+  <loc>https://hnmart.in/product/00bfd8a8-23d8-40f3-886a-1bec92231f98</loc>
+    <lastmod>2025-10-10</lastmod>
+    <priority>0.9</priority>
+  </url>
+  <url>
+  <loc>https://hnmart.in/product/02116878-bbdc-4909-9122-03b07124b368</loc>
+    <lastmod>2025-10-10</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+  <loc>https://hnmart.in/product/02487845-4412-4804-9826-e7d0e4766ec1</loc>
+    <lastmod>2025-10-10</lastmod>
+    <priority>0.7</priority>
   </url>
 </urlset>

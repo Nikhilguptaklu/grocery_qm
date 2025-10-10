@@ -23,19 +23,19 @@ const Home: React.FC = () => {
 		<div className="min-h-screen bg-background">
 			<Helmet>
 				<title>HN Mart - Fresh Groceries Delivered Fast</title>
-				<link rel="canonical" href="https://hnmart.com/" />
+				<link rel="canonical" href="https://hnmart.in/" />
 				<meta name="description" content="HN Mart - Get fresh groceries, vegetables, fruits, and daily essentials delivered to your doorstep in minutes." />
 				<script type="application/ld+json">
 				{`{
 				  "@context": "https://schema.org",
 				  "@graph": [
 				    {
-				      "@type": "WebSite",
-				      "name": "HN Mart",
-				      "url": "https://hnmart.com",
+						"@type": "WebSite",
+						"name": "HN Mart",
+						"url": "https://hnmart.in",
 				      "potentialAction": {
 				        "@type": "SearchAction",
-				        "target": "https://hnmart.com/search?q={search_term_string}",
+						"target": "https://hnmart.in/search?q={search_term_string}",
 				        "query-input": "required name=search_term_string"
 				      }
 				    },
@@ -43,8 +43,8 @@ const Home: React.FC = () => {
 								"@type": "LocalBusiness",
 								"name": "HN Mart",
 								"image": "https://hnmart.in/",
-								"@id": "https://hnmart.com",
-								"url": "https://hnmart.com",
+								"@id": "https://hnmart.in",
+								"url": "https://hnmart.in",
 								"telephone": "+91-8294291858",
 								"address": {
 									"@type": "PostalAddress",
@@ -61,12 +61,13 @@ const Home: React.FC = () => {
 				</script>
 			</Helmet>
 
-			<section className="bg-gradient-hero text-primary-foreground py-10 sm:py-20">
-				<div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 text-center">
+			<section className="relative min-h-[40vh] bg-cover bg-center bg-no-repeat text-white" style={{ backgroundImage: `url('/src/assets/11111.jpg')` }}>
+				<div className="absolute inset-0 bg-black/40"></div>
+				<div className="relative max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-10 sm:py-20 text-center">
 					<h1 className="text-2xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6">
 						Fresh Groceries
 						<br />
-						<span className="text-secondary-foreground">Delivered Fast</span>
+						<span className="text-green-300">Delivered Fast</span>
 					</h1>
 					<p className="text-sm sm:text-xl md:text-2xl mb-4 sm:mb-8 opacity-90">
 						Get fresh groceries delivered to your doorstep in minutes
@@ -74,7 +75,7 @@ const Home: React.FC = () => {
 					<div>
 						<Button
 							size="lg"
-							variant="secondary"
+							className="bg-white text-green-600 hover:bg-gray-100 text-lg px-8 py-4"
 							onClick={() => document.getElementById('categories-section')?.scrollIntoView({ behavior: 'smooth' })}
 						>
 							Start Shopping

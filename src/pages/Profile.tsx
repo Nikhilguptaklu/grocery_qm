@@ -179,7 +179,7 @@ const Profile = () => {
         <meta name="description" content="Manage your account, addresses and orders on HN Mart. View your order history and update profile information." />
         <meta property="og:title" content="My Profile - HN Mart" />
         <meta property="og:description" content="Manage your account and orders on HN Mart." />
-        <meta property="og:url" content="https://hnmart.com/profile" />
+  <meta property="og:url" content="https://hnmart.in/profile" />
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content="My Profile - HN Mart" />
         <meta name="twitter:description" content="Manage your account and orders on HN Mart." />
@@ -190,7 +190,7 @@ const Profile = () => {
             "name": "${profile.name || ''}",
             "email": "${profile.email}",
             "jobTitle": "Customer",
-            "url": "https://hnmart.com/profile"
+            "url": "https://hnmart.in/profile"
           }`}
         </script>
       </Helmet>

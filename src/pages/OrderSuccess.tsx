@@ -122,7 +122,7 @@ const OrderSuccess = () => {
         <meta name="description" content="Your order has been confirmed on HN Mart. Track delivery and view order details." />
         <meta property="og:title" content="Order Confirmed - HN Mart" />
         <meta property="og:description" content="Your order has been confirmed on HN Mart. Track delivery and view order details." />
-        <meta property="og:url" content="https://hnmart.com/order-success" />
+  <meta property="og:url" content="https://hnmart.in/order-success" />
         <meta name="twitter:card" content="summary" />
       </Helmet>
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
