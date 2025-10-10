@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
 import { ArrowLeft, Plus, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,10 +19,12 @@ const categoryNames: Record<string, string> = {
 
 const Category = () => {
   const { categoryId } = useParams<{ categoryId: string }>();
+  const categoryTitle = categoryNames[categoryId || 'all'] || 'Category';
   const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -107,8 +110,74 @@ const Category = () => {
     }
   };
 
+  // Prepare a JSON-LD safe products array (some DB fields like description/stock may be missing from Product type)
+  const ldProducts = products.map(p => {
+    const image = p.image
+      ? (p.image.startsWith && (p.image as string).startsWith('http') ? p.image : `https://hnmart.com${(p.image as string).startsWith('/') ? p.image : '/' + p.image}`)
+      : 'https://hnmart.com/favicon.ico';
+
+    const anyP = p as any;
+    return {
+      name: p.name || '',
+      image,
+      description: anyP.description || '',
+      sku: p.id || '',
+      offers: {
+        price: (typeof p.price === 'number' ? (p.price as number).toFixed(2) : String(p.price || '0')),
+        priceCurrency: 'INR',
+        availability: anyP.stock && anyP.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock'
+      }
+    };
+  });
+
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>{`${categoryTitle} | HN Mart`}</title>
+        <link rel="canonical" href={`https://hnmart.com/category/${categoryId}`} />
+        <meta name="description" content={`Shop ${categoryTitle} at HN Mart. Fresh groceries, best prices, fast delivery.`} />
+        <meta name="keywords" content={`hnmart, ${categoryTitle.toLowerCase()}, grocery, online shopping, delivery`} />
+        <meta property="og:title" content={`${categoryTitle} | HN Mart`} />
+        <meta property="og:description" content={`Shop ${categoryTitle} at HN Mart. Fresh groceries, best prices, fast delivery.`} />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="/favicon.ico" />
+        <meta property="og:url" content={`https://hnmart.com/category/${categoryId}`} />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            "itemListElement": ldProducts.map((p, i) => ({
+              "@type": "ListItem",
+              "position": i + 1,
+              "item": {
+                "@type": "Product",
+                "name": p.name,
+                "image": p.image,
+                "sku": p.sku,
+                "offers": p.offers
+              }
+            }))
+          }, null, 2)}
+        </script>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": ldProducts.map(p => ({
+              "@type": "Product",
+              "name": p.name,
+              "image": p.image,
+              "description": p.description,
+              "sku": p.sku,
+              "offers": {
+                "@type": "Offer",
+                "price": p.offers.price,
+                "priceCurrency": p.offers.priceCurrency,
+                "availability": p.offers.availability
+              }
+            }))
+          }, null, 2)}
+        </script>
+      </Helmet>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -130,9 +199,20 @@ const Category = () => {
           </div>
         </div>
 
+        {/* Search Bar */}
+        <div className="mb-6 flex justify-center">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search products..."
+            className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+
         {/* Products Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
             {[...Array(6)].map((_, index) => (
               <Card key={index} className="animate-pulse">
                 <div className="h-48 bg-muted rounded-t-lg" />
@@ -147,36 +227,39 @@ const Category = () => {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products.map((product, index) => (
+          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
+            {products.filter(product => product.name.toLowerCase().includes(search.toLowerCase())).map((product, index) => (
               <Card 
                 key={product.id} 
-                className="hover:shadow-medium transition-all duration-300 transform hover:-translate-y-1 animate-fade-up"
-                style={{ animationDelay: `${index * 50}ms` }}
+                className="aspect-square flex flex-col justify-between hover:shadow-medium transition-all duration-300 transform hover:-translate-y-1 animate-fade-up p-1 sm:p-2"
+                style={{ animationDelay: `${index * 50}ms`, maxWidth: '120px', minWidth: '100px' }}
               >
-                <CardHeader className="p-0">
-                  <div className="relative overflow-hidden rounded-t-lg">
+                <CardHeader className="p-0 flex-0">
+                  <div className="relative overflow-hidden rounded-t-lg aspect-square">
                     <img
                       src={product.image}
                       alt={product.name}
-                      className="w-full h-48 object-cover transition-transform duration-300 hover:scale-105"
+                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105 absolute inset-0"
+                      style={{ aspectRatio: '1/1' }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                   </div>
                 </CardHeader>
-                
-                <CardContent className="p-4">
-                  <CardTitle className="text-lg font-semibold text-foreground mb-2 line-clamp-2">
+                <CardContent className="p-1 flex-1 flex flex-col justify-center items-center">
+                  <CardTitle className="text-[13px] font-semibold text-foreground mb-1 line-clamp-2 text-center">
                     {product.name}
                   </CardTitle>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-primary">
-                      {`₹${Number(product.price).toFixed(2)}`}
+                  {product.unit && (
+                    <span className="text-xs text-muted-foreground mb-1">
+                      {product.unit}
                     </span>
-                  </div>
+                  )}
+                  <span className="text-base font-bold text-primary">
+                    {`₹${Number(product.price).toFixed(2)}`}
+                    {product.unit && <span className="text-xs text-muted-foreground ml-1">/ {product.unit}</span>}
+                  </span>
                 </CardContent>
-
-                <CardFooter className="p-4 pt-0">
+                <CardFooter className="p-1 pt-0 flex-0">
                   {getQuantityInCart(product.id) === 0 ? (
                     <Button 
                       onClick={() => handleAddToCart(product)}
@@ -187,9 +270,9 @@ const Category = () => {
                       Add to Cart
                     </Button>
                   ) : (
-                    <div className="w-full flex items-center justify-between gap-3">
+                    <div className="w-full flex items-center justify-between gap-2">
                       <Button variant="outline" size="sm" onClick={() => decrement(product)}>-</Button>
-                      <div className="flex-1 text-center font-medium">
+                      <div className="flex-1 text-center font-medium text-xs">
                         Qty: {getQuantityInCart(product.id)}
                       </div>
                       <Button variant="default" size="sm" onClick={() => increment(product)}>+</Button>
@@ -202,7 +285,7 @@ const Category = () => {
         )}
 
         {/* Empty State */}
-        {products.length === 0 && !loading && (
+        {products.filter(product => product.name.toLowerCase().includes(search.toLowerCase())).length === 0 && !loading && (
           <div className="text-center py-16">
             <ShoppingCart className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-2xl font-semibold text-foreground mb-2">No products found</h2>

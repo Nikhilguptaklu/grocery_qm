@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle, Truck, MapPin, Package, Clock, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -116,6 +117,14 @@ const OrderSuccess = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Order Confirmed - HN Mart</title>
+        <meta name="description" content="Your order has been confirmed on HN Mart. Track delivery and view order details." />
+        <meta property="og:title" content="Order Confirmed - HN Mart" />
+        <meta property="og:description" content="Your order has been confirmed on HN Mart. Track delivery and view order details." />
+        <meta property="og:url" content="https://hnmart.com/order-success" />
+        <meta name="twitter:card" content="summary" />
+      </Helmet>
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-8">
           <CheckCircle className="w-24 h-24 text-green-500 mx-auto mb-6" />

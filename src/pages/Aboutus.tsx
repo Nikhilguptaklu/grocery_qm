@@ -1,3 +1,4 @@
+import { Helmet } from 'react-helmet';
 import { Store, Truck, ShieldCheck, Users } from "lucide-react";
 import founderImg from "@/assets/founder.jpg"; // 👉 replace with your founder image
 import ceoImg from "@/assets/ceo.jpg"; // 👉 replace with your CEO image
@@ -5,6 +6,21 @@ import ceoImg from "@/assets/ceo.jpg"; // 👉 replace with your CEO image
 export default function About() {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>About HN Mart - Your Trusted Grocery Partner</title>
+        <meta name="description" content="Learn about HN Mart, your trusted online grocery store for fresh groceries, fast delivery, and great prices. Discover our mission, vision, and team." />
+        <meta name="keywords" content="hnmart, about hnmart, grocery store, online shopping, company, mission, vision, team, fresh groceries" />
+        <meta property="og:title" content="About HN Mart - Your Trusted Grocery Partner" />
+        <meta property="og:description" content="Learn about HN Mart, your trusted online grocery store for fresh groceries, fast delivery, and great prices. Discover our mission, vision, and team." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="/public/favicon.ico" />
+        <meta property="og:url" content="https://hnmart.com/aboutus" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@hnmart" />
+        <meta name="twitter:title" content="About HN Mart - Your Trusted Grocery Partner" />
+        <meta name="twitter:description" content="Learn about HN Mart, your trusted online grocery store for fresh groceries, fast delivery, and great prices. Discover our mission, vision, and team." />
+        <meta name="twitter:image" content="/public/favicon.ico" />
+      </Helmet>
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-primary to-secondary text-white py-20">
         <div className="max-w-5xl mx-auto px-6 text-center">

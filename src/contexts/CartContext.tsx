@@ -6,6 +6,7 @@ export interface Product {
   price: number;
   category: string;
   image: string;
+  unit?: string; // e.g., '1kg', '500g', '2L'
 }
 
 export interface CartItem extends Product {
@@ -89,7 +90,29 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
 };
 
 export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(cartReducer, { items: [], total: 0 });
+  // Load cart from localStorage
+  const getInitialCart = () => {
+    try {
+      const stored = localStorage.getItem('cart');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && Array.isArray(parsed.items)) {
+          return {
+            items: parsed.items,
+            total: parsed.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+          };
+        }
+      }
+    } catch {}
+    return { items: [], total: 0 };
+  };
+
+  const [state, dispatch] = useReducer(cartReducer, getInitialCart());
+
+  // Save cart to localStorage whenever it changes
+  React.useEffect(() => {
+    localStorage.setItem('cart', JSON.stringify({ items: state.items }));
+  }, [state.items]);
 
   const addToCart = (product: Product) => {
     dispatch({ type: 'ADD_ITEM', payload: product });

@@ -1,3 +1,4 @@
+import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Minus, Plus, Trash2, ShoppingCart, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -83,6 +84,16 @@ const Cart = () => {
   if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-background px-4">
+        <Helmet>
+          <title>Cart | HN Mart</title>
+          <meta name="description" content="View and manage your cart at HN Mart. Fast checkout, best prices, fresh groceries." />
+          <meta name="keywords" content="hnmart, cart, grocery, checkout, online shopping, delivery" />
+          <meta property="og:title" content="Cart | HN Mart" />
+          <meta property="og:description" content="View and manage your cart at HN Mart. Fast checkout, best prices, fresh groceries." />
+          <meta property="og:type" content="website" />
+          <meta property="og:image" content="/public/favicon.ico" />
+          <meta property="og:url" content="https://hnmart.com/cart" />
+        </Helmet>
         <div className="max-w-4xl mx-auto py-8">
           <div className="flex flex-col sm:flex-row items-center sm:space-x-4 mb-8 text-center sm:text-left">
             <Link to="/">
@@ -116,6 +127,16 @@ const Cart = () => {
 
   return (
     <div className="min-h-screen bg-background px-4">
+      <Helmet>
+        <title>Cart | HN Mart</title>
+        <meta name="description" content="View and manage your cart at HN Mart. Fast checkout, best prices, fresh groceries." />
+        <meta name="keywords" content="hnmart, cart, grocery, checkout, online shopping, delivery" />
+        <meta property="og:title" content="Cart | HN Mart" />
+        <meta property="og:description" content="View and manage your cart at HN Mart. Fast checkout, best prices, fresh groceries." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="/public/favicon.ico" />
+        <meta property="og:url" content="https://hnmart.com/cart" />
+      </Helmet>
       <div className="max-w-6xl mx-auto py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">

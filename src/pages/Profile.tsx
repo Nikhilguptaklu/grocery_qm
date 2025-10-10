@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, MapPin, Phone, Mail, Edit, Save, X, Package } from 'lucide-react';
+import { User, MapPin, Phone, Mail, Edit, Save, X, Package, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,7 @@ interface Order {
   status: string;
   created_at: string;
   delivery_address: string | null;
+  payment_method?: string;
   order_items: {
     quantity: number;
     price: number;
@@ -172,6 +174,26 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-green-50 pb-10">
+      <Helmet>
+        <title>My Profile - HN Mart</title>
+        <meta name="description" content="Manage your account, addresses and orders on HN Mart. View your order history and update profile information." />
+        <meta property="og:title" content="My Profile - HN Mart" />
+        <meta property="og:description" content="Manage your account and orders on HN Mart." />
+        <meta property="og:url" content="https://hnmart.com/profile" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content="My Profile - HN Mart" />
+        <meta name="twitter:description" content="Manage your account and orders on HN Mart." />
+        <script type="application/ld+json">
+          {`{
+            "@context": "https://schema.org",
+            "@type": "Person",
+            "name": "${profile.name || ''}",
+            "email": "${profile.email}",
+            "jobTitle": "Customer",
+            "url": "https://hnmart.com/profile"
+          }`}
+        </script>
+      </Helmet>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-4xl font-bold text-green-800 mb-1">My Profile</h1>
         <p className="text-green-700 mb-6">Manage your account and order history</p>
@@ -232,24 +254,74 @@ const Profile = () => {
                   <Link to="/"><Button className="bg-green-500 hover:bg-green-600 text-white mt-4">Start Shopping</Button></Link>
                 </div>
               ) : orders.map(order => (
-                <Card key={order.id} className="shadow-md border border-gray-200 hover:shadow-2xl transition duration-300">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between mb-3">
-                      <div><p className="font-semibold">Order #{order.id.slice(0,8)}</p><p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleDateString()}</p></div>
-                      <div className={`px-2 py-1 rounded ${getStatusColor(order.status)} text-sm font-semibold`}>{order.status.replace('-',' ').toUpperCase()}</div>
-                    </div>
-                    {order.delivery_address && <p className="text-sm text-gray-700 mb-2"><MapPin className="w-3 h-3 inline mr-1" />{order.delivery_address}</p>}
-                    {order.order_items.map((item,index)=>(
-                      <div key={index} className="flex items-center space-x-3 mb-2">
-                        {item.products.image && <img src={item.products.image} alt={item.products.name} className="w-10 h-10 rounded" />}
-                        <div className="flex-1">
-                          <p className="font-medium text-green-900">{item.products.name}</p>
-                          <p className="text-sm text-gray-600">Qty: {item.quantity} × ₹{item.price.toFixed(2)}</p>
+                <Card key={order.id} className="shadow-lg border border-gray-200 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 bg-gradient-to-r from-green-50 to-blue-50">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <div className="bg-green-100 p-2 rounded-full">
+                            <Package className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg text-gray-800">Order #{order.id.slice(0,8)}</h3>
+                            <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleDateString('en-US', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}</p>
+                          </div>
                         </div>
-                        <p className="font-semibold text-green-800">₹{(item.price*item.quantity).toFixed(2)}</p>
+                        
+                        {order.delivery_address && (
+                          <div className="flex items-start space-x-2 mb-3">
+                            <MapPin className="w-4 h-4 text-orange-500 mt-0.5" />
+                            <p className="text-sm text-gray-700">{order.delivery_address}</p>
+                          </div>
+                        )}
+
+                        {order.payment_method && (
+                          <div className="flex items-center space-x-2 mb-3">
+                            <CreditCard className="w-4 h-4 text-blue-500" />
+                            <span className="text-sm text-gray-700">
+                              Payment: {order.payment_method === 'card' ? 'Credit/Debit Card' : 'Cash on Delivery'}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    ))}
-                    <div className="text-right font-bold text-green-900 mt-2">Total: ₹{order.total_amount.toFixed(2)}</div>
+                      
+                      <div className="text-right">
+                        <div className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(order.status)}`}>
+                          {order.status.replace('-',' ').toUpperCase()}
+                        </div>
+                        <div className="text-lg font-bold text-green-800 mt-2">₹{order.total_amount.toFixed(2)}</div>
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <h4 className="font-semibold text-gray-800 mb-3">Order Items</h4>
+                      <div className="space-y-3">
+                        {order.order_items.map((item,index)=>(
+                          <div key={index} className="flex items-center space-x-4 p-3 bg-white rounded-lg shadow-sm border">
+                            {item.products.image && (
+                              <img 
+                                src={item.products.image} 
+                                alt={item.products.name} 
+                                className="w-12 h-12 rounded-lg object-cover border" 
+                              />
+                            )}
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-800">{item.products.name}</p>
+                              <p className="text-sm text-gray-600">Quantity: {item.quantity} × ₹{item.price.toFixed(2)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-green-700">₹{(item.price*item.quantity).toFixed(2)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               ))}

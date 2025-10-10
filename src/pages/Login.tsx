@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, LogIn, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -61,6 +62,16 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <Helmet>
+        <title>Login - HN Mart</title>
+        <meta name="description" content="Sign in to your HN Mart account to manage orders, addresses and payments." />
+        <meta property="og:title" content="Login - HN Mart" />
+        <meta property="og:description" content="Sign in to your HN Mart account to manage orders and addresses." />
+        <meta property="og:url" content="https://hnmart.com/login" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content="Login - HN Mart" />
+        <meta name="twitter:description" content="Sign in to your HN Mart account." />
+      </Helmet>
       <div className="w-full max-w-md space-y-8">
         {/* Header */}
         <div className="text-center">

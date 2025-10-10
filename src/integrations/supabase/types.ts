@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      coupons: {
+        Row: {
+          code: string
+          created_at: string | null
+          description: string | null
+          discount_type: string
+          discount_value: number
+          id: string
+          is_active: boolean | null
+          max_discount_amount: number | null
+          min_order_amount: number | null
+          updated_at: string | null
+          usage_limit: number | null
+          used_count: number | null
+          valid_from: string | null
+          valid_until: string
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          description?: string | null
+          discount_type: string
+          discount_value: number
+          id?: string
+          is_active?: boolean | null
+          max_discount_amount?: number | null
+          min_order_amount?: number | null
+          updated_at?: string | null
+          usage_limit?: number | null
+          used_count?: number | null
+          valid_from?: string | null
+          valid_until: string
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          is_active?: boolean | null
+          max_discount_amount?: number | null
+          min_order_amount?: number | null
+          updated_at?: string | null
+          usage_limit?: number | null
+          used_count?: number | null
+          valid_from?: string | null
+          valid_until?: string
+        }
+        Relationships: []
+      }
       issues: {
         Row: {
           admin_notes: string | null
@@ -100,10 +151,14 @@ export type Database = {
       }
       orders: {
         Row: {
+          coupon_code: string | null
           created_at: string
           delivery_address: string | null
+          delivery_lat: number | null
+          delivery_lon: number | null
           delivery_notes: string | null
           delivery_person_id: string | null
+          discount_amount: number | null
           estimated_delivery: string | null
           id: string
           payment_method: string | null
@@ -113,10 +168,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          coupon_code?: string | null
           created_at?: string
           delivery_address?: string | null
+          delivery_lat?: number | null
+          delivery_lon?: number | null
           delivery_notes?: string | null
           delivery_person_id?: string | null
+          discount_amount?: number | null
           estimated_delivery?: string | null
           id?: string
           payment_method?: string | null
@@ -126,10 +185,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          coupon_code?: string | null
           created_at?: string
           delivery_address?: string | null
+          delivery_lat?: number | null
+          delivery_lon?: number | null
           delivery_notes?: string | null
           delivery_person_id?: string | null
+          discount_amount?: number | null
           estimated_delivery?: string | null
           id?: string
           payment_method?: string | null
@@ -138,40 +201,83 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_orders_coupon"
+            columns: ["coupon_code"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      product_keywords: {
+        Row: {
+          created_at: string
+          id: string
+          keyword: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          keyword: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          keyword?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_keywords_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
           category: string
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           image: string | null
           name: string
           price: number
           stock: number | null
+          unit: string | null
           updated_at: string
         }
         Insert: {
           category: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           image?: string | null
           name: string
           price: number
           stock?: number | null
+          unit?: string | null
           updated_at?: string
         }
         Update: {
           category?: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           image?: string | null
           name?: string
           price?: number
           stock?: number | null
+          unit?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -185,6 +291,7 @@ export type Database = {
           name: string | null
           phone: string | null
           role: Database["public"]["Enums"]["app_role"] | null
+          status: string | null
           updated_at: string
         }
         Insert: {
@@ -195,6 +302,7 @@ export type Database = {
           name?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
+          status?: string | null
           updated_at?: string
         }
         Update: {
@@ -205,6 +313,7 @@ export type Database = {
           name?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
+          status?: string | null
           updated_at?: string
         }
         Relationships: []

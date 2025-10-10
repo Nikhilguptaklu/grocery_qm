@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Truck, MapPin, Clock, CheckCircle } from 'lucide-react';
+import { Truck, MapPin, Clock, CheckCircle, CreditCard } from 'lucide-react';
 
 interface DeliveryOrder {
   id: string;
@@ -19,6 +20,7 @@ interface DeliveryOrder {
   delivery_lon?: number | null;
   delivery_notes?: string;
   estimated_delivery?: string;
+  payment_method?: string;
   profiles?: { name: string; email: string; phone: string } | null;
   order_items?: {
     quantity: number;
@@ -107,6 +109,7 @@ const Delivery = () => {
           estimated_delivery,
           delivery_person_id,
           user_id,
+          payment_method,
           order_items (
             quantity,
             price,
@@ -242,6 +245,27 @@ const Delivery = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Delivery Dashboard - HN Mart</title>
+        <meta name="description" content="Delivery dashboard to manage and track orders for HN Mart. Accept and update delivery statuses in real-time." />
+        <meta name="keywords" content="HN Mart, delivery dashboard, grocery delivery, order tracking" />
+        <meta property="og:title" content="Delivery Dashboard - HN Mart" />
+        <meta property="og:description" content="Delivery dashboard to manage and track orders for HN Mart. Accept and update delivery statuses in real-time." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://hnmart.com/delivery" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content="Delivery Dashboard - HN Mart" />
+        <meta name="twitter:description" content="Delivery dashboard to manage and track orders for HN Mart." />
+        <script type="application/ld+json">
+          {`{
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Delivery Dashboard - HN Mart",
+            "description": "Manage and track delivery orders for HN Mart.",
+            "url": "https://hnmart.com/delivery"
+          }`}
+        </script>
+      </Helmet>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground flex items-center space-x-3">
@@ -293,6 +317,12 @@ const Delivery = () => {
                   <p className="text-sm"><strong>Email:</strong> {order.profiles?.email}</p>
                   {order.profiles?.phone && (
                     <p className="text-sm"><strong>Phone:</strong> {order.profiles.phone}</p>
+                  )}
+                  {order.payment_method && (
+                    <div className="flex items-center space-x-2">
+                      <CreditCard className="w-4 h-4 text-blue-500" />
+                      <p className="text-sm"><strong>Payment:</strong> {order.payment_method === 'card' ? 'Credit/Debit Card' : 'Cash on Delivery'}</p>
+                    </div>
                   )}
                 </div>
 
