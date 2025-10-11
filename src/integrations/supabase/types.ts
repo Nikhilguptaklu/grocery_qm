@@ -318,6 +318,111 @@ export type Database = {
         }
         Relationships: []
       }
+      restaurant_orders: {
+        Row: {
+          created_at: string
+          delivery_address: string | null
+          delivery_lat: number | null
+          delivery_lon: number | null
+          delivery_person_id: string | null
+          estimated_delivery: string | null
+          id: string
+          notes: string | null
+          payment_method: string | null
+          restaurant_id: string
+          status: string
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_address?: string | null
+          delivery_lat?: number | null
+          delivery_lon?: number | null
+          delivery_person_id?: string | null
+          estimated_delivery?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          restaurant_id: string
+          status?: string
+          total_amount: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          delivery_address?: string | null
+          delivery_lat?: number | null
+          delivery_lon?: number | null
+          delivery_person_id?: string | null
+          estimated_delivery?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          restaurant_id?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      restaurant_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          price: number
+          quantity: number
+          restaurant_food_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          price: number
+          quantity?: number
+          restaurant_food_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          price?: number
+          quantity?: number
+          restaurant_food_id?: string
+        }
+        Relationships: []
+      }
+      delivery_settings: {
+        Row: {
+          created_at: string
+          delivery_fee: number
+          free_delivery_threshold: number
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_fee: number
+          free_delivery_threshold: number
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivery_fee?: number
+          free_delivery_threshold?: number
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

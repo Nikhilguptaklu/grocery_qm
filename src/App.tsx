@@ -7,6 +7,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "./components/footer";
+import Chatbot from "./components/Chatbot";
 import Home from "./pages/Home";
 import Category from "./pages/Category";
 import Cart from "./pages/Cart";
@@ -15,13 +16,15 @@ import Profile from "./pages/Profile";
 import About from "@/pages/Aboutus";
 import ContactUs from "./pages/ContactUs";
 import OrderSuccess from "./pages/OrderSuccess";
+import RestaurantOrderSuccess from "./pages/RestaurantOrderSuccess";
+import RestaurantOrdering from "./pages/RestaurantOrdering";
+import RestaurantMenu from "./pages/RestaurantMenu";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Admin from "./pages/Admin";
 import Delivery from "./pages/Delivery";
 import Product from "./pages/Product";
 import NotFound from "./pages/NotFound";
-import Chatbot from "./components/Chatbot";
 
 const queryClient = new QueryClient();
 
@@ -43,9 +46,12 @@ const App = () => (
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/restaurants" element={<RestaurantOrdering />} />
+                <Route path="/restaurants/:restaurantId" element={<RestaurantMenu />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/contact" element={<ContactUs />} />
                 <Route path="/order-success" element={<OrderSuccess />} />
+                <Route path="/restaurant-order-success" element={<RestaurantOrderSuccess />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/admin" element={<Admin />} />

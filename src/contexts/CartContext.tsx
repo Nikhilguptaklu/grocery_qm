@@ -7,6 +7,10 @@ export interface Product {
   category: string;
   image: string;
   unit?: string; // e.g., '1kg', '500g', '2L'
+  type?: 'grocery' | 'restaurant';
+  restaurantId?: string;
+  restaurantName?: string;
+  restaurantFoodId?: string;
 }
 
 export interface CartItem extends Product {

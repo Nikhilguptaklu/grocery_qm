@@ -1,24 +1,109 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { ArrowRight, Package, Leaf, Apple, Droplets, ShoppingCart } from 'lucide-react';
+import { ArrowRight, Package, Leaf, Apple, Droplets, ShoppingCart, UtensilsCrossed } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import type { Restaurant } from '@/pages/Admin/types';
 
 import vegetablesImg from '@/assets/vegetables.jpg';
 import fruitsImg from '@/assets/fruits.jpg';
 import groceryImg from '@/assets/grocery.jpg';
 import coldDrinksImg from '@/assets/cold-drinks.jpg';
+import restaurantImg from '@/assets/aboutus.png';
 
 const categories = [
-	{ id: 'all', name: 'All Products', description: 'Browse everything we offer', image: groceryImg, icon: ShoppingCart, color: 'from-purple-500 to-purple-600' },
-	{ id: 'grocery', name: 'Grocery', description: 'Daily essentials & pantry items', image: groceryImg, icon: Package, color: 'from-blue-500 to-blue-600' },
-	{ id: 'vegetables', name: 'Vegetables', description: 'Fresh & organic vegetables', image: vegetablesImg, icon: Leaf, color: 'from-green-500 to-green-600' },
-	{ id: 'fruits', name: 'Fruits', description: 'Fresh seasonal fruits', image: fruitsImg, icon: Apple, color: 'from-red-500 to-red-600' },
-	{ id: 'cold-drinks', name: 'Cold Drinks', description: 'Refreshing beverages', image: coldDrinksImg, icon: Droplets, color: 'from-cyan-500 to-cyan-600' }
+	{
+		id: 'all',
+		name: 'All Products',
+		description: 'Browse everything we offer',
+		image: groceryImg,
+		icon: ShoppingCart,
+		color: 'from-purple-500 to-purple-600',
+		href: '/category/all',
+	},
+	{
+		id: 'grocery',
+		name: 'Grocery',
+		description: 'Daily essentials & pantry items',
+		image: groceryImg,
+		icon: Package,
+		color: 'from-blue-500 to-blue-600',
+		href: '/category/grocery',
+	},
+	{
+		id: 'vegetables',
+		name: 'Vegetables',
+		description: 'Fresh & organic vegetables',
+		image: vegetablesImg,
+		icon: Leaf,
+		color: 'from-green-500 to-green-600',
+		href: '/category/vegetables',
+	},
+	{
+		id: 'fruits',
+		name: 'Fruits',
+		description: 'Fresh seasonal fruits',
+		image: fruitsImg,
+		icon: Apple,
+		color: 'from-red-500 to-red-600',
+		href: '/category/fruits',
+	},
+	{
+		id: 'cold-drinks',
+		name: 'Cold Drinks',
+		description: 'Refreshing beverages',
+		image: coldDrinksImg,
+		icon: Droplets,
+		color: 'from-cyan-500 to-cyan-600',
+		href: '/category/cold-drinks',
+	},
+	{
+		id: 'restaurants',
+		name: 'Restaurant Orders',
+		description: 'Order freshly prepared meals from local restaurants',
+		image: restaurantImg,
+		icon: UtensilsCrossed,
+		color: 'from-amber-500 to-red-500',
+		href: '/restaurants',
+	},
 ];
 
 const Home: React.FC = () => {
+	const [restaurantPreview, setRestaurantPreview] = useState<Restaurant[]>([]);
+	const [loadingRestaurants, setLoadingRestaurants] = useState(false);
+	const [restaurantError, setRestaurantError] = useState<string | null>(null);
+
+	useEffect(() => {
+		const fetchRestaurants = async () => {
+			setLoadingRestaurants(true);
+			setRestaurantError(null);
+			try {
+				const { data, error } = await supabase
+					.from('restaurants')
+					.select('id, name, description, image_url, is_active')
+					.eq('is_active', true)
+					.order('created_at', { ascending: false })
+					.limit(6);
+
+				if (error) {
+					throw error;
+				}
+
+				setRestaurantPreview((data as Restaurant[]) || []);
+			} catch (err) {
+				console.error('Error loading restaurants for home page:', err);
+				setRestaurantError('Unable to load restaurants right now.');
+				setRestaurantPreview([]);
+			} finally {
+				setLoadingRestaurants(false);
+			}
+		};
+
+		void fetchRestaurants();
+	}, []);
+
 	return (
 		<div className="min-h-screen bg-background">
 			<Helmet>
@@ -96,13 +181,36 @@ const Home: React.FC = () => {
 						{categories.map((category, index) => {
 							const Icon = category.icon;
 							return (
-								<Link key={category.id} to={`/category/${category.id}`} className="group" style={{ animationDelay: `${index * 80}ms` }}>
+								<Link key={category.id} to={category.href} className="group" style={{ animationDelay: `${index * 80}ms` }}>
 									<Card className="aspect-square overflow-hidden relative">
 										<img src={category.image} alt={category.name} className="w-full h-full object-cover" />
 										<div className="absolute inset-0 flex flex-col justify-end p-3 bg-gradient-to-t from-black/40 to-transparent text-white">
 											<h3 className="font-bold">{category.name}</h3>
 											<p className="text-xs">{category.description}</p>
-											<Button size="sm" className="mt-2">Browse <ArrowRight className="ml-1 w-3 h-3" /></Button>
+											{category.id === 'restaurants' && (
+												<div className="mt-2 space-y-1 text-left">
+													{loadingRestaurants ? (
+														<p className="text-xs text-white/80">Loading partner restaurants...</p>
+													) : restaurantError ? (
+														<p className="text-xs text-red-200">{restaurantError}</p>
+													) : restaurantPreview.length > 0 ? (
+														<ul className="space-y-1 text-xs">
+															{restaurantPreview.map((restaurant) => (
+																<li key={restaurant.id} className="flex items-center gap-1">
+																	<span className="inline-block w-1.5 h-1.5 rounded-full bg-primary" />
+																	<span className="truncate">{restaurant.name}</span>
+																</li>
+															))}
+														</ul>
+													) : (
+														<p className="text-xs text-white/80">No partner restaurants yet.</p>
+													)}
+												</div>
+											)}
+											<Button size="sm" className="mt-2">
+												{category.id === 'restaurants' ? 'Order Now' : 'Browse'}{' '}
+												<ArrowRight className="ml-1 w-3 h-3" />
+											</Button>
 										</div>
 									</Card>
 								</Link>

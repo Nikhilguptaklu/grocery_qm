@@ -1,7 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  ShoppingCart, User, Home, LogIn, UserPlus, LogOut, Shield, Truck, Info, Menu, Mail
+import {
+  ShoppingCart,
+  User,
+  Home,
+  LogIn,
+  UserPlus,
+  LogOut,
+  Shield,
+  Truck,
+  Info,
+  Menu,
+  Mail,
+  UtensilsCrossed,
+  X,
 } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -97,6 +109,18 @@ const Navbar = () => {
             >
               <Home className="w-4 h-4" />
               <span>Home</span>
+            </Link>
+
+            <Link
+              to="/restaurants"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-lg font-medium transition-colors ${
+                isActive('/restaurants') 
+                  ? 'bg-accent text-accent-foreground' 
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              <UtensilsCrossed className="w-4 h-4" />
+              <span>Restaurants</span>
             </Link>
 
             <Link
@@ -236,8 +260,29 @@ const Navbar = () => {
 
       {/* Mobile Dropdown Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-card border-t shadow-lg">
-          <div className="flex flex-col space-y-2 p-4">
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          {/* Slide-in Menu */}
+          <div className="fixed top-0 right-0 h-full w-80 bg-card border-l shadow-xl z-50 md:hidden transform transition-transform duration-300 ease-in-out">
+            <div className="flex flex-col h-full">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="text-lg font-semibold">Menu</h2>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 hover:bg-muted rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              {/* Menu Items */}
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="flex flex-col space-y-2">
             <Link
               to="/"
               className={`flex items-center space-x-2 px-3 py-2 rounded-lg ${
@@ -249,6 +294,19 @@ const Navbar = () => {
             >
               <Home className="w-4 h-4" />
               <span>Home</span>
+            </Link>
+
+            <Link
+              to="/restaurants"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-lg ${
+                isActive('/restaurants') 
+                  ? 'bg-accent text-accent-foreground' 
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <UtensilsCrossed className="w-4 h-4" />
+              <span>Restaurants</span>
             </Link>
 
             <Link
@@ -335,8 +393,11 @@ const Navbar = () => {
                 </button>
               </>
             )}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </nav>
   );

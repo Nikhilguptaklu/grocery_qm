@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, CreditCard, MapPin, Navigation } from 'lucide-react';
@@ -62,6 +62,17 @@ const Checkout = () => {
   const [deliverySettings, setDeliverySettings] = useState<any>(null);
   const [deliveryFee, setDeliveryFee] = useState(0);
 
+  const groceryItems = useMemo(() => cartItems.filter((item) => item.type !== 'restaurant'), [cartItems]);
+  const restaurantItems = useMemo(() => cartItems.filter((item) => item.type === 'restaurant'), [cartItems]);
+  const grocerySubtotal = useMemo(
+    () => groceryItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [groceryItems]
+  );
+  const restaurantSubtotal = useMemo(
+    () => restaurantItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [restaurantItems]
+  );
+
   // Redirect if user not logged in or cart empty
   useEffect(() => {
     if (authLoading) return;
@@ -113,14 +124,16 @@ const Checkout = () => {
 
         if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
           console.error('Error fetching delivery settings:', error);
+          console.log('Will use default delivery settings');
         } else if (data) {
           console.log('Delivery settings fetched:', data);
           setDeliverySettings(data);
         } else {
-          console.log('No delivery settings found');
+          console.log('No delivery settings found, using defaults');
         }
       } catch (error) {
         console.error('Error fetching delivery settings:', error);
+        console.log('Will use default delivery settings');
       }
     };
 
@@ -191,7 +204,7 @@ const Checkout = () => {
       }
 
       // Check minimum order amount
-      const cartTotal = getCartTotal();
+      const cartTotal = grocerySubtotal;
       if (data.min_order_amount && cartTotal < data.min_order_amount) {
         setCouponError(`Minimum order amount of ₹${data.min_order_amount} required`);
         return;
@@ -221,7 +234,7 @@ const Checkout = () => {
   const calculateDiscount = () => {
     if (!appliedCoupon) return 0;
     
-    const cartTotal = getCartTotal();
+    const cartTotal = grocerySubtotal;
     let discount = 0;
 
     if (appliedCoupon.discount_type === 'percentage') {
@@ -240,12 +253,31 @@ const Checkout = () => {
 
   // Calculate delivery fee
   const calculateDeliveryFee = () => {
+    if (grocerySubtotal === 0) {
+      return 0;
+    }
+
+    // Use default values if delivery settings are not available
+    const defaultDeliveryFee = 50;
+    const defaultFreeDeliveryThreshold = 2000;
+    
     if (!deliverySettings) {
-      console.log('No delivery settings found, using default fee of ₹50');
-      return 50; // Default delivery fee if no settings found
+      console.log('No delivery settings found, using default values');
+      const cartTotal = grocerySubtotal;
+      const discount = calculateDiscount();
+      const finalAmount = cartTotal - discount;
+      
+      // If order amount is above threshold, delivery is free
+      if (finalAmount >= defaultFreeDeliveryThreshold) {
+        console.log('Free delivery applied (default threshold)');
+        return 0;
+      }
+      
+      console.log('Default delivery fee applied:', defaultDeliveryFee);
+      return defaultDeliveryFee;
     }
     
-    const cartTotal = getCartTotal();
+    const cartTotal = grocerySubtotal;
     const discount = calculateDiscount();
     const finalAmount = cartTotal - discount;
     
@@ -272,11 +304,19 @@ const Checkout = () => {
   useEffect(() => {
     const fee = calculateDeliveryFee();
     setDeliveryFee(fee);
-  }, [deliverySettings, cartItems, appliedCoupon]);
+  }, [deliverySettings, grocerySubtotal, appliedCoupon]);
+
+  const discountAmount = calculateDiscount();
+  const groceryBaseAmount = Math.max(grocerySubtotal - discountAmount, 0);
+  const groceryTax = (groceryBaseAmount + deliveryFee) * 0.1;
+  const groceryGrandTotal = groceryBaseAmount + deliveryFee + groceryTax;
+  const overallTotal = groceryGrandTotal + restaurantSubtotal;
 
   // Place order
   const handlePlaceOrder = async () => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     if (!address.street || !address.city || !address.state || !address.zipCode || !address.phone) {
       toast({
@@ -287,7 +327,6 @@ const Checkout = () => {
       return;
     }
 
-    // Validate phone number (10 digits)
     if (address.phone.length !== 10) {
       toast({
         title: "Invalid phone number",
@@ -297,64 +336,235 @@ const Checkout = () => {
       return;
     }
 
+    if (cartItems.length === 0) {
+      toast({
+        title: "Cart is empty",
+        description: "Add items to your cart before placing an order.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
     try {
+      console.log('Starting order placement...', {
+        user: user.id,
+        cartItems: cartItems.length,
+        groceryItems: groceryItems.length,
+        restaurantItems: restaurantItems.length
+      });
+
       const fullAddress = `${address.street}, ${address.city}, ${address.state} ${address.zipCode}, Landmark: ${address.landmark}`;
-      const cartTotal = getCartTotal();
       const discount = calculateDiscount();
       const deliveryFeeAmount = calculateDeliveryFee();
-      const finalAmount = (cartTotal - discount + deliveryFeeAmount) * 1.1; // Apply tax after discount and delivery fee
+      const groceryTaxAmount = (grocerySubtotal - discount + deliveryFeeAmount) * 0.1;
+      const groceryTotalAmount = grocerySubtotal - discount + deliveryFeeAmount + groceryTaxAmount;
 
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
+      console.log('Order calculations:', {
+        grocerySubtotal,
+        discount,
+        deliveryFeeAmount,
+        groceryTaxAmount,
+        groceryTotalAmount
+      });
+
+      let createdOrderId: string | null = null;
+      let createdRestaurantOrderIds: string[] = [];
+
+      if (groceryItems.length > 0) {
+        console.log('Creating grocery order...');
+        
+        // Create order data with only the columns that exist in the database
+        const orderData: any = {
           user_id: user.id,
-          total_amount: finalAmount,
+          total_amount: groceryTotalAmount,
           status: 'confirmed',
           delivery_address: fullAddress,
-          // store coords if available
-          delivery_lat: coordinates ? coordinates[1] : null,
-          delivery_lon: coordinates ? coordinates[0] : null,
-          payment_method: paymentMethod,
-          delivery_notes: `${deliveryNotes} | Alt Phone: ${address.alternatePhone}`,
-          coupon_code: appliedCoupon?.code || null,
-          discount_amount: discount,
-          delivery_fee: deliveryFeeAmount
-        })
-        .select()
-        .single();
+          delivery_notes: `${deliveryNotes} | Alt Phone: ${address.alternatePhone} | Payment: ${paymentMethod} | Coupon: ${appliedCoupon?.code || 'None'} | Discount: ₹${discount} | Delivery Fee: ₹${deliveryFeeAmount}`,
+        };
+        
+        // Try to add optional columns if they exist
+        if (coordinates) {
+          orderData.delivery_lat = coordinates[1];
+          orderData.delivery_lon = coordinates[0];
+        }
+        
+        console.log('Order data:', orderData);
 
-      if (orderError) throw orderError;
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert(orderData)
+          .select()
+          .single();
 
-      const orderItems = cartItems.map(item => ({
-        order_id: order.id,
-        product_id: item.id,
-        quantity: item.quantity,
-        price: item.price
-      }));
+        if (orderError) {
+          console.error('Order creation error:', orderError);
+          throw orderError;
+        }
+        
+        if (!order) {
+          console.error('No order returned from database');
+          throw new Error('Failed to create order - no data returned');
+        }
 
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-      if (itemsError) throw itemsError;
+        console.log('Order created successfully:', order.id);
 
-      // Update coupon usage count if coupon was applied
-      if (appliedCoupon) {
-        await supabase
-          .from('coupons')
-          .update({ used_count: appliedCoupon.used_count + 1 } as Database['public']['Tables']['coupons']['Update'])
-          .eq('id', appliedCoupon.id);
+        const orderItemsPayload = groceryItems.map((item) => ({
+          order_id: order.id,
+          product_id: item.id,
+          quantity: item.quantity,
+          price: item.price,
+        }));
+
+        console.log('Order items payload:', orderItemsPayload);
+
+        const { error: itemsError } = await supabase.from('order_items').insert(orderItemsPayload);
+        if (itemsError) {
+          console.error('Order items insertion error:', itemsError);
+          throw itemsError;
+        }
+
+        console.log('Order items inserted successfully');
+
+        if (appliedCoupon) {
+          console.log('Updating coupon usage count...');
+          const { error: couponError } = await supabase
+            .from('coupons')
+            .update({ used_count: (appliedCoupon.used_count ?? 0) + 1 } as Database['public']['Tables']['coupons']['Update'])
+            .eq('id', appliedCoupon.id);
+          
+          if (couponError) {
+            console.error('Coupon update error:', couponError);
+            // Don't throw here, just log the error as it's not critical
+          } else {
+            console.log('Coupon usage count updated successfully');
+          }
+        }
+
+        createdOrderId = order.id;
       }
 
+      if (restaurantItems.length > 0) {
+        console.log('Processing restaurant orders...');
+        const grouped = new Map<string, { name?: string | null; items: typeof restaurantItems }>();
+
+        restaurantItems.forEach((item) => {
+          if (!item.restaurantId || !item.restaurantFoodId) {
+            console.warn('Restaurant item missing required fields:', item);
+            return;
+          }
+
+          const existing = grouped.get(item.restaurantId);
+          if (existing) {
+            existing.items.push(item);
+          } else {
+            grouped.set(item.restaurantId, { name: item.restaurantName, items: [item] });
+          }
+        });
+
+        console.log('Grouped restaurant orders:', grouped.size);
+
+        for (const [groupRestaurantId, group] of grouped.entries()) {
+          const totalAmount = group.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+          
+          console.log(`Creating restaurant order for ${groupRestaurantId}:`, {
+            totalAmount,
+            itemCount: group.items.length
+          });
+
+          const { data: restaurantOrder, error: restaurantOrderError } = await (supabase as any)
+            .from('restaurant_orders')
+            .insert({
+              restaurant_id: groupRestaurantId,
+              user_id: user.id,
+              status: 'pending',
+              total_amount: totalAmount,
+              payment_method: paymentMethod,
+              notes: `${deliveryNotes || ''} | Alt Phone: ${address.alternatePhone}`,
+            })
+            .select()
+            .single();
+
+          if (restaurantOrderError) {
+            console.error('Restaurant order creation error:', restaurantOrderError);
+            throw restaurantOrderError;
+          }
+          
+          if (!restaurantOrder) {
+            console.error('No restaurant order returned from database');
+            throw new Error('Failed to create restaurant order - no data returned');
+          }
+
+          console.log('Restaurant order created successfully:', restaurantOrder.id);
+          createdRestaurantOrderIds.push(restaurantOrder.id);
+
+          const restaurantOrderItemsPayload = group.items.map((item) => ({
+            order_id: restaurantOrder.id,
+            restaurant_food_id: item.restaurantFoodId as string,
+            quantity: item.quantity,
+            price: item.price,
+          }));
+
+          console.log('Restaurant order items payload:', restaurantOrderItemsPayload);
+
+          if (restaurantOrderItemsPayload.length > 0) {
+            const { error: restaurantItemsError } = await (supabase as any)
+              .from('restaurant_order_items')
+              .insert(restaurantOrderItemsPayload);
+            if (restaurantItemsError) {
+              console.error('Restaurant order items insertion error:', restaurantItemsError);
+              throw restaurantItemsError;
+            }
+            console.log('Restaurant order items inserted successfully');
+          }
+        }
+      }
+
+      console.log('Order placement completed successfully');
       clearCart();
-      navigate(`/order-success?orderId=${order.id}`);
+
+      // Handle navigation based on order types
+      if (createdOrderId && createdRestaurantOrderIds.length > 0) {
+        // Both grocery and restaurant orders - go to grocery order success (primary)
+        console.log('Navigating to grocery order success page with order ID:', createdOrderId);
+        navigate(`/order-success?orderId=${createdOrderId}`);
+      } else if (createdOrderId) {
+        // Only grocery order
+        console.log('Navigating to grocery order success page with order ID:', createdOrderId);
+        navigate(`/order-success?orderId=${createdOrderId}`);
+      } else if (createdRestaurantOrderIds.length > 0) {
+        // Only restaurant orders - go to restaurant order success page
+        console.log('Navigating to restaurant order success page with order ID:', createdRestaurantOrderIds[0]);
+        navigate(`/restaurant-order-success?orderId=${createdRestaurantOrderIds[0]}`);
+      } else {
+        // Fallback - should not happen
+        console.log('No orders created, navigating to profile orders page');
+        navigate('/profile?tab=orders');
+      }
+
+      if (groceryItems.length > 0 && restaurantItems.length > 0) {
+        toast({
+          title: 'Orders placed',
+          description: 'Grocery and restaurant orders have been placed successfully.',
+        });
+      } else if (groceryItems.length > 0) {
+        toast({
+          title: 'Order placed',
+          description: 'Your order has been successfully placed!',
+        });
+      } else {
+        toast({
+          title: 'Restaurant order placed',
+          description: 'Your restaurant order has been successfully placed!',
+        });
+      }
+    } catch (error) {
+      console.error('Error placing order:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
-        title: "Order placed",
-        description: "Your order has been successfully placed!",
-      });
-    } catch {
-      toast({
-        title: "Order failed",
-        description: "Failed to place order. Please try again.",
-        variant: "destructive",
+        title: 'Order failed',
+        description: `Failed to place order: ${errorMessage}. Please check the console for more details.`,
+        variant: 'destructive',
       });
     } finally {
       setIsProcessing(false);
@@ -665,3 +875,9 @@ const Checkout = () => {
 };
 
 export default Checkout;
+
+
+
+
+
+
