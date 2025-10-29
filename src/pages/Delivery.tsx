@@ -47,13 +47,19 @@ const Delivery = () => {
 
   useEffect(() => {
     if (!realtimeEnabled) return;
-    const channel = supabase
-      .channel('orders-realtime')
+    const channel = supabase.channel('orders-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => {
         toast({ title: 'New Order', description: 'A new order was placed.' });
         fetchOrders();
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => {
+        fetchOrders();
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'restaurant_orders' }, () => {
+        toast({ title: 'New Restaurant Order', description: 'A new restaurant order was placed.' });
+        fetchOrders();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'restaurant_orders' }, () => {
         fetchOrders();
       })
       .subscribe();
@@ -95,6 +101,7 @@ const Delivery = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
+      // Query client orders
       let query = supabase
         .from('orders')
         .select(`
@@ -133,15 +140,58 @@ const Delivery = () => {
         .select('role')
         .eq('id', user?.id || '')
         .maybeSingle();
-      if (roleRow && roleRow.role === 'delivery') {
+      const isDelivery = roleRow && roleRow.role === 'delivery';
+      if (isDelivery) {
         query = query.eq('delivery_person_id', user?.id || '');
       }
 
       const { data: ordersData, error } = await query;
-
       if (error) throw error;
-
       const baseOrders = (ordersData || []) as any[];
+
+      // Query restaurant orders assigned to this delivery user
+      let restaurantOrders: any[] = [];
+      try {
+        // cast to any because generated supabase types may be missing restaurant tables
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let restQuery: any = (supabase as any)
+          .from('restaurant_orders')
+          .select(`
+            id,
+            total_amount,
+            status,
+            created_at,
+            delivery_address,
+            delivery_lat,
+            delivery_lon,
+            estimated_delivery,
+            delivery_person_id,
+            user_id,
+            payment_method,
+            restaurant_id,
+            items: restaurant_order_items (quantity, price, restaurant_food_id)
+          `)
+          .order('created_at', { ascending: false });
+
+        if (isDelivery) restQuery = restQuery.eq('delivery_person_id', user?.id || '');
+
+        const { data: rData, error: rErr } = await restQuery;
+
+        if (!rErr && rData) {
+          restaurantOrders = rData as any[];
+        }
+      } catch (e) {
+        console.error('Error fetching restaurant orders:', e);
+      }
+
+      // Fetch restaurant orders separately (assigned to delivery user if role is delivery)
+      let restaurantOrdersFiltered: any[] = [];
+      if (!isDelivery) {
+        // admins see all restaurant orders
+        restaurantOrdersFiltered = restaurantOrders;
+      } else {
+        restaurantOrdersFiltered = restaurantOrders.filter((ro) => ro.delivery_person_id === user?.id);
+      }
 
       // Fetch profiles separately since there is no FK for implicit join
       let profilesById: Record<string, { name: string; email: string; phone: string | null }> = {};
@@ -165,7 +215,41 @@ const Delivery = () => {
         } : null
       }));
 
-      setOrders(enriched as unknown as DeliveryOrder[]);
+      // Enrich restaurant orders: fetch food names for restaurant_order_items
+      let restaurantFoodMap = new Map<string, any>();
+      try {
+        // cast to any for restaurant_foods as well
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: foodsData } = await (supabase as any).from('restaurant_foods').select('id, name');
+        (foodsData || []).forEach((f: any) => restaurantFoodMap.set(f.id, f));
+      } catch (e) {
+        console.error('Error loading restaurant foods:', e);
+      }
+
+      const enrichedRestaurantOrders = restaurantOrdersFiltered.map((ro) => ({
+        id: ro.id,
+        total_amount: ro.total_amount,
+        status: ro.status,
+        created_at: ro.created_at,
+        delivery_address: ro.delivery_address,
+        delivery_lat: ro.delivery_lat,
+        delivery_lon: ro.delivery_lon,
+        delivery_notes: ro.notes || null,
+        estimated_delivery: ro.estimated_delivery,
+        payment_method: ro.payment_method,
+        delivery_person_id: ro.delivery_person_id,
+        user_id: ro.user_id,
+        profiles: profilesById[ro.user_id] || null,
+        order_items: (ro.items || []).map((it: any) => ({
+          quantity: it.quantity,
+          price: it.price,
+          products: { name: restaurantFoodMap.get(it.restaurant_food_id)?.name || 'Item' }
+        }))
+      }));
+
+      // Merge both orders arrays: treat restaurant orders alongside client orders
+      const merged = [...enriched, ...enrichedRestaurantOrders];
+      setOrders(merged as unknown as DeliveryOrder[]);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast({

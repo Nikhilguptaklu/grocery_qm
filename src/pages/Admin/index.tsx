@@ -15,6 +15,7 @@ import {
   Users as UsersIcon,
   UtensilsCrossed,
   Receipt,
+  MoreHorizontal,
 } from 'lucide-react';
 import ProductsPage from './ProductsPage';
 import OrdersPage from './OrdersPage';
@@ -52,10 +53,12 @@ const Admin = () => {
   const [restaurantOrders, setRestaurantOrders] = useState<RestaurantOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('products');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const sb = supabase as any;
       const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('*')
@@ -200,7 +203,7 @@ const Admin = () => {
         setDeliverySettings((deliveryData as unknown as DeliverySettings[]) || []);
       }
 
-      const { data: restaurantsData, error: restaurantsError } = await supabase
+      const { data: restaurantsData, error: restaurantsError } = await sb
         .from('restaurants')
         .select('*')
         .order('created_at', { ascending: false });
@@ -212,7 +215,7 @@ const Admin = () => {
         setRestaurants((restaurantsData as unknown as Restaurant[]) || []);
       }
 
-      const { data: restaurantFoodsData, error: restaurantFoodsError } = await supabase
+      const { data: restaurantFoodsData, error: restaurantFoodsError } = await sb
         .from('restaurant_foods')
         .select('*')
         .order('created_at', { ascending: false });
@@ -227,7 +230,7 @@ const Admin = () => {
         setRestaurantFoods(typedRestaurantFoods);
       }
 
-      const { data: restaurantOrdersData, error: restaurantOrdersError } = await supabase
+      const { data: restaurantOrdersData, error: restaurantOrdersError } = await sb
         .from('restaurant_orders')
         .select('*')
         .order('created_at', { ascending: false });
@@ -237,7 +240,7 @@ const Admin = () => {
         setRestaurantOrders([]);
       } else if (restaurantOrdersData && restaurantOrdersData.length > 0) {
         const restaurantOrderUserIds = [
-          ...new Set(restaurantOrdersData.map((order) => order.user_id)),
+          ...new Set((restaurantOrdersData as any[]).map((order: any) => String(order.user_id))),
         ];
 
         const { data: restaurantOrderProfilesData } = await supabase
@@ -395,40 +398,67 @@ const Admin = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
-            <TabsTrigger value="products" className="flex items-center space-x-2">
-              <Package className="w-4 h-4" />
-              <span>Products ({products.length})</span>
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center space-x-2">
-              <ShoppingBag className="w-4 h-4" />
-              <span>Orders ({orders.length})</span>
-            </TabsTrigger>
-            <TabsTrigger value="restaurants" className="flex items-center space-x-2">
-              <UtensilsCrossed className="w-4 h-4" />
-              <span>Restaurants ({restaurants.length})</span>
-            </TabsTrigger>
-            <TabsTrigger value="restaurantOrders" className="flex items-center space-x-2">
-              <Receipt className="w-4 h-4" />
-              <span>Food Orders ({restaurantOrders.length})</span>
-            </TabsTrigger>
-            <TabsTrigger value="coupons" className="flex items-center space-x-2">
-              <CreditCard className="w-4 h-4" />
-              <span>Coupons ({coupons.length})</span>
-            </TabsTrigger>
-            <TabsTrigger value="delivery" className="flex items-center space-x-2">
-              <Truck className="w-4 h-4" />
-              <span>Delivery ({deliverySettings.length})</span>
-            </TabsTrigger>
-            <TabsTrigger value="issues" className="flex items-center space-x-2">
-              <MessageSquare className="w-4 h-4" />
-              <span>Issues ({issues.length})</span>
-            </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center space-x-2">
-              <UsersIcon className="w-4 h-4" />
-              <span>Users ({users.length})</span>
-            </TabsTrigger>
-          </TabsList>
+            {/* Desktop/Tablet tab list (hidden on small screens) */}
+            <TabsList className="hidden sm:grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
+              {[
+                { value: 'products', label: `Products (${products.length})`, Icon: Package },
+                { value: 'orders', label: `Orders (${orders.length})`, Icon: ShoppingBag },
+                { value: 'restaurants', label: `Restaurants (${restaurants.length})`, Icon: UtensilsCrossed },
+                { value: 'restaurantOrders', label: `Food Orders (${restaurantOrders.length})`, Icon: Receipt },
+                { value: 'coupons', label: `Coupons (${coupons.length})`, Icon: CreditCard },
+                { value: 'delivery', label: `Delivery (${deliverySettings.length})`, Icon: Truck },
+                { value: 'issues', label: `Issues (${issues.length})`, Icon: MessageSquare },
+                { value: 'users', label: `Users (${users.length})`, Icon: UsersIcon },
+              ].map((t) => (
+                <TabsTrigger key={t.value} value={t.value} className="flex items-center space-x-2">
+                  <t.Icon className="w-4 h-4" />
+                  <span>{t.label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {/* Mobile: three-dot dropdown containing all admin sections */}
+            <div className="sm:hidden flex justify-end mb-4">
+              <div className="relative">
+                <button
+                  aria-label="Open admin menu"
+                  aria-expanded={mobileMenuOpen}
+                  onClick={() => setMobileMenuOpen((s) => !s)}
+                  className="p-2 rounded-md border bg-popover"
+                >
+                  <MoreHorizontal className="w-5 h-5" />
+                </button>
+
+                {mobileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-popover border rounded-md shadow-lg z-50">
+                    <nav className="flex flex-col p-2">
+                      {[
+                        { value: 'products', label: `Products (${products.length})`, Icon: Package },
+                        { value: 'orders', label: `Orders (${orders.length})`, Icon: ShoppingBag },
+                        { value: 'restaurants', label: `Restaurants (${restaurants.length})`, Icon: UtensilsCrossed },
+                        { value: 'restaurantOrders', label: `Food Orders (${restaurantOrders.length})`, Icon: Receipt },
+                        { value: 'coupons', label: `Coupons (${coupons.length})`, Icon: CreditCard },
+                        { value: 'delivery', label: `Delivery (${deliverySettings.length})`, Icon: Truck },
+                        { value: 'issues', label: `Issues (${issues.length})`, Icon: MessageSquare },
+                        { value: 'users', label: `Users (${users.length})`, Icon: UsersIcon },
+                      ].map((t) => (
+                        <button
+                          key={t.value}
+                          onClick={() => {
+                            setActiveTab(t.value);
+                            setMobileMenuOpen(false);
+                          }}
+                          className="flex items-center space-x-2 p-2 rounded hover:bg-muted"
+                        >
+                          <t.Icon className="w-4 h-4" />
+                          <span>{t.label}</span>
+                        </button>
+                      ))}
+                    </nav>
+                  </div>
+                )}
+              </div>
+            </div>
 
           <TabsContent value="products">
             <ProductsPage products={products} onRefresh={fetchData} currentUserId={user?.id} />

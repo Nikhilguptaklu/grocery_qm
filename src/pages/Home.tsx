@@ -5,6 +5,8 @@ import { ArrowRight, Package, Leaf, Apple, Droplets, ShoppingCart, UtensilsCross
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import type { Restaurant } from '@/pages/Admin/types';
 
 import vegetablesImg from '@/assets/vegetables.jpg';
@@ -12,6 +14,10 @@ import fruitsImg from '@/assets/fruits.jpg';
 import groceryImg from '@/assets/grocery.jpg';
 import coldDrinksImg from '@/assets/cold-drinks.jpg';
 import restaurantImg from '@/assets/aboutus.png';
+import heroImg from '@/assets/11111.jpg';
+// additional images (may not exist yet) – we will attempt to use them and fall back if needed
+import img2 from '@/assets/22222.jpg';
+import img3 from '@/assets/33333.jpg';
 
 const categories = [
 	{
@@ -71,6 +77,8 @@ const categories = [
 ];
 
 const Home: React.FC = () => {
+	const { user } = useAuth();
+	const { getItemCount } = useCart();
 	const [restaurantPreview, setRestaurantPreview] = useState<Restaurant[]>([]);
 	const [loadingRestaurants, setLoadingRestaurants] = useState(false);
 	const [restaurantError, setRestaurantError] = useState<string | null>(null);
@@ -80,7 +88,9 @@ const Home: React.FC = () => {
 			setLoadingRestaurants(true);
 			setRestaurantError(null);
 			try {
-				const { data, error } = await supabase
+				// supabase type definitions in this project may not include the `restaurants` table.
+				// Cast to `any` here to avoid excessive type instantiation errors during compile.
+				const { data, error } = await (supabase as any)
 					.from('restaurants')
 					.select('id, name, description, image_url, is_active')
 					.eq('is_active', true)
@@ -91,7 +101,7 @@ const Home: React.FC = () => {
 					throw error;
 				}
 
-				setRestaurantPreview((data as Restaurant[]) || []);
+				setRestaurantPreview((data as any) || []);
 			} catch (err) {
 				console.error('Error loading restaurants for home page:', err);
 				setRestaurantError('Unable to load restaurants right now.');
@@ -146,18 +156,19 @@ const Home: React.FC = () => {
 				</script>
 			</Helmet>
 
-			<section className="relative min-h-[40vh] bg-cover bg-center bg-no-repeat text-white" style={{ backgroundImage: `url('/src/assets/11111.jpg')` }}>
-				<div className="absolute inset-0 bg-black/40"></div>
-				<div className="relative max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-10 sm:py-20 text-center">
-					<h1 className="text-2xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6">
-						Fresh Groceries
-						<br />
-						<span className="text-green-300">Delivered Fast</span>
-					</h1>
-					<p className="text-sm sm:text-xl md:text-2xl mb-4 sm:mb-8 opacity-90">
-						Get fresh groceries delivered to your doorstep in minutes
-					</p>
-					<div>
+			{!user && (
+				<section className="relative w-full overflow-hidden bg-cover bg-center" style={{ minHeight: '48vh', backgroundImage: `url(${heroImg})` }}>
+					{/* overlay for contrast (below content) */}
+					<div className="absolute inset-0 bg-black/40 z-0" />
+					<div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-28 text-center z-10">
+						<h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 text-white">
+							Fresh Groceries
+							<br />
+							<span className="text-green-300">Delivered Fast</span>
+						</h1>
+						<p className="text-sm sm:text-xl md:text-2xl mb-6 text-white/90">
+							Get fresh groceries delivered to your doorstep in minutes
+						</p>
 						<Button
 							size="lg"
 							className="bg-white text-green-600 hover:bg-gray-100 text-lg px-8 py-4"
@@ -167,8 +178,21 @@ const Home: React.FC = () => {
 							<ArrowRight className="ml-2 w-5 h-5" />
 						</Button>
 					</div>
-				</div>
-			</section>
+				</section>
+			)}
+
+			{/* Inline styles for sliding background (kept here to avoid touching global CSS) */}
+			<style>{`
+			@keyframes slide-left {
+				0% { transform: translateX(0%); }
+				100% { transform: translateX(-33.3333%); }
+			}
+			.animate-slide-left {
+				animation: slide-left 12s linear infinite;
+			}
+			`}</style>
+
+
 
 			<section id="categories-section" className="py-16">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -66,6 +66,8 @@ const Cart = () => {
         description: "You need to be logged in to place an order.",
         variant: "destructive",
       });
+      // send user to login and preserve next
+      navigate('/login?next=/checkout');
       return;
     }
 
@@ -171,67 +173,29 @@ const Cart = () => {
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
             {cartItems.map((item, index) => (
-              <Card 
-                key={item.id} 
-                className="animate-fade-up w-full"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex flex-col sm:flex-row items-center sm:items-start sm:space-x-4">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-24 h-24 object-cover rounded-lg mb-4 sm:mb-0"
-                    />
-                    
-                    <div className="flex-1 text-center sm:text-left">
-                      <h3 className="text-lg font-semibold text-foreground">{item.name}</h3>
-                      <p className="text-muted-foreground capitalize">{item.category}</p>
-                      <p className="text-xl font-bold text-primary mt-2">
-                        {formatPrice(item.price)}
-                      </p>
-                    </div>
+              <Link to={`/product/${item.id}`} key={item.id} className="block animate-fade-up" style={{ animationDelay: `${index * 50}ms` }}>
+                <div className="flex items-center gap-4 p-3 bg-card border rounded-lg hover:shadow-md transition-shadow">
+                  <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded" />
 
-                    {/* Quantity + Remove */}
-                    <div className="flex flex-col sm:flex-row items-center gap-2 mt-4 sm:mt-0">
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                          className="w-8 h-8 p-0"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </Button>
-                        <span className="w-10 text-center font-semibold">{item.quantity}</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                          className="w-8 h-8 p-0"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between">
+                      <h3 className="text-sm font-semibold text-foreground truncate">{item.name}</h3>
+                      <div className="text-sm font-semibold">{formatPrice(item.price * item.quantity)}</div>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{item.category}</p>
+
+                    <div className="mt-2 flex items-center justify-between">
+                      <div className="flex items-center border rounded-md overflow-hidden">
+                        <button className="px-2 py-1 text-sm" onClick={(e) => { e.preventDefault(); handleQuantityChange(item.id, item.quantity - 1); }}>-</button>
+                        <div className="px-3 py-1 text-sm font-semibold">{item.quantity}</div>
+                        <button className="px-2 py-1 text-sm" onClick={(e) => { e.preventDefault(); handleQuantityChange(item.id, item.quantity + 1); }}>+</button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveItem(item.id, item.name)}
-                        className="text-destructive hover:text-destructive p-2"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+
+                      <button className="text-destructive text-sm" onClick={(e) => { e.preventDefault(); handleRemoveItem(item.id, item.name); }}>Remove</button>
                     </div>
                   </div>
-
-                  {/* Item Subtotal */}
-                  <div className="flex justify-end mt-4 pt-4 border-t">
-                    <span className="text-lg font-semibold">
-                      Subtotal: {formatPrice(item.price * item.quantity)}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </Link>
             ))}
           </div>
 

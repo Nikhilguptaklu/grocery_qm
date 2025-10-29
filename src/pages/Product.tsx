@@ -11,6 +11,7 @@ const ProductPage = () => {
   const { toast } = useToast();
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [localNames, setLocalNames] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -23,6 +24,13 @@ const ProductPage = () => {
           toast({ title: 'Error', description: 'Failed to load product', variant: 'destructive' });
         } else {
           setProduct(data);
+          // fetch local keywords
+          try {
+            const { data: kws } = await supabase.from('product_keywords').select('keyword').eq('product_id', productId);
+            if (Array.isArray(kws)) setLocalNames(kws.map((k: any) => k.keyword));
+          } catch (e) {
+            // ignore
+          }
         }
       } catch (err) {
         console.error(err);
@@ -83,6 +91,12 @@ const ProductPage = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-lg font-semibold text-primary">₹{Number(product.price).toFixed(2)}{product.unit && <span className="text-sm text-muted-foreground"> / {product.unit}</span>}</p>
+                {product.brand && (
+                  <p className="text-sm text-muted-foreground mt-1">Brand: {product.brand}</p>
+                )}
+                {localNames.length > 0 && (
+                  <p className="text-sm text-muted-foreground mt-1">Also known as: {localNames.join(', ')}</p>
+                )}
                 <p className="mt-4 text-sm text-muted-foreground">{product.description}</p>
                 <div className="mt-6">
                   <Link to={`/category/${product.category || 'all'}`}>

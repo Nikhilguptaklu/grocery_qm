@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, LogIn, Mail, Lock } from 'lucide-react';
@@ -19,6 +20,8 @@ const Login = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const next = searchParams.get('next');
 
   const handleChange = (e) => {
     setFormData(prev => ({
@@ -48,7 +51,25 @@ const Login = () => {
           title: "Login successful!",
           description: "Welcome back to HN Mart.",
         });
-        navigate('/');
+        // fetch profile to decide redirect based on role
+          try {
+            if (next) {
+              navigate(next);
+              return;
+            }
+
+            const { data: profile } = await (supabase as any).from('profiles').select('role').eq('email', formData.email).maybeSingle();
+            const role = (profile as any)?.role || null;
+            if (role === 'shop') {
+              navigate('/shop');
+            } else if (role === 'restaurant') {
+              navigate('/restaurant-dashboard');
+            } else {
+              navigate('/');
+            }
+          } catch (err) {
+            navigate('/');
+          }
       }
     } catch (error) {
       toast({
@@ -226,21 +247,7 @@ const Login = () => {
           </form>
         </Card>
 
-        {/* Demo Account */}
-        <Card className="shadow-soft">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <h3 className="text-sm font-medium text-foreground mb-2">Demo Account</h3>
-              <p className="text-xs text-muted-foreground mb-3">
-                Use these credentials to test the application:
-              </p>
-              <div className="space-y-1 text-xs text-muted-foreground">
-                <p><strong>Email:</strong> demo@hnmart.in</p>
-                <p><strong>Password:</strong> demo123</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+       
       </div>
     </div>
   );

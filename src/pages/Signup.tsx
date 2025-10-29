@@ -201,18 +201,9 @@ const Signup = () => {
                 </div>
               </div>
 
-              {/* Phone and Address */}
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" name="phone" type="tel" placeholder="Enter your phone number"
-                  value={formData.phone} onChange={handleChange} required />
-              </div>
+              
 
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input id="address" name="address" type="text" placeholder="Enter your address"
-                  value={formData.address} onChange={handleChange} required />
-              </div>
+              
 
               {/* Terms */}
               <div className="flex items-center space-x-2">

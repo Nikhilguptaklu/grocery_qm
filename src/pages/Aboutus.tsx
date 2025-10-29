@@ -5,7 +5,7 @@ import ceoImg from "@/assets/ceo.jpg"; // 👉 replace with your CEO image
 
 export default function About() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground">
       <Helmet>
         <title>About HN Mart - Your Trusted Grocery Partner</title>
         <meta name="description" content="Learn about HN Mart, your trusted online grocery store for fresh groceries, fast delivery, and great prices. Discover our mission, vision, and team." />
@@ -22,16 +22,29 @@ export default function About() {
         <meta name="twitter:image" content="/public/favicon.ico" />
       </Helmet>
       {/* Hero Section */}
-      <section className="relative min-h-[50vh] bg-cover bg-center bg-no-repeat text-white" style={{ backgroundImage: `url('/src/assets/aboutus.jpg')` }}>
-        <div className="absolute inset-0 bg-black/50"></div>
-        <div className="relative max-w-5xl mx-auto px-6 py-20 text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold mb-4">
-            About <span className="text-yellow-300">HN Mart</span>
+      <section className="relative min-h-[56vh] bg-gradient-to-b from-primary/10 via-transparent to-transparent">
+        <div className="absolute inset-0 bg-[url('/src/assets/aboutus.jpg')] bg-cover bg-center opacity-50"></div>
+        <div className="relative max-w-6xl mx-auto px-6 py-24 text-center">
+          <div className="inline-flex items-center gap-3 bg-primary/10 text-primary px-3 py-1 rounded-full mb-6">
+            <Store className="w-5 h-5" />
+            <span className="text-sm font-medium">Local • Fresh • Fast</span>
+          </div>
+          <h1 className="text-4xl sm:text-5xl font-extrabold mb-4 leading-tight">
+            HN Mart — Grocery made simple
           </h1>
-          <p className="text-lg sm:text-xl max-w-2xl mx-auto opacity-90">
-            HN Mart is your trusted online shopping destination — bringing 
-            quality products, fast delivery, and great prices to your doorstep.
+          <p className="text-base sm:text-lg max-w-3xl mx-auto text-muted-foreground">
+            Fresh produce, everyday essentials and curated local favorites — delivered to your
+            doorstep with care. We believe in honest pricing, reliable delivery, and putting
+            customers first.
           </p>
+          <div className="mt-8 flex items-center justify-center gap-4">
+            <a href="/signup" className="inline-flex items-center bg-primary text-primary-foreground px-6 py-3 rounded-lg shadow hover:shadow-lg transition font-medium">
+              Get Started
+            </a>
+            <a href="/contact" className="inline-flex items-center text-primary underline-offset-4 hover:underline">
+              Contact sales
+            </a>
+          </div>
         </div>
       </section>
 
@@ -56,32 +69,32 @@ export default function About() {
       </section>
 
       {/* Features */}
-      <section className="bg-muted py-16">
+      <section className="py-16">
         <div className="max-w-6xl mx-auto px-6 text-center">
-          <h2 className="text-3xl font-bold mb-12">Why Shop With Us?</h2>
+          <h2 className="text-3xl font-bold mb-8">Why Shop With Us?</h2>
           <div className="grid gap-8 md:grid-cols-4 sm:grid-cols-2">
-            <div className="bg-card shadow-soft p-6 rounded-2xl hover:shadow-lg transition">
+            <div className="bg-card p-6 rounded-2xl hover:shadow-lg transition transform hover:-translate-y-1">
               <Store className="mx-auto h-10 w-10 text-primary mb-4" />
               <h3 className="font-semibold mb-2">Wide Selection</h3>
               <p className="text-sm text-muted-foreground">
                 Thousands of products across categories to meet all your needs.
               </p>
             </div>
-            <div className="bg-card shadow-soft p-6 rounded-2xl hover:shadow-lg transition">
+            <div className="bg-card p-6 rounded-2xl hover:shadow-lg transition transform hover:-translate-y-1">
               <Truck className="mx-auto h-10 w-10 text-primary mb-4" />
               <h3 className="font-semibold mb-2">Fast Delivery</h3>
               <p className="text-sm text-muted-foreground">
                 Superfast and reliable delivery to your doorstep.
               </p>
             </div>
-            <div className="bg-card shadow-soft p-6 rounded-2xl hover:shadow-lg transition">
+            <div className="bg-card p-6 rounded-2xl hover:shadow-lg transition transform hover:-translate-y-1">
               <ShieldCheck className="mx-auto h-10 w-10 text-primary mb-4" />
               <h3 className="font-semibold mb-2">Trusted Quality</h3>
               <p className="text-sm text-muted-foreground">
                 Every product is quality-checked to ensure satisfaction.
               </p>
             </div>
-            <div className="bg-card shadow-soft p-6 rounded-2xl hover:shadow-lg transition">
+            <div className="bg-card p-6 rounded-2xl hover:shadow-lg transition transform hover:-translate-y-1">
               <Users className="mx-auto h-10 w-10 text-primary mb-4" />
               <h3 className="font-semibold mb-2">Customer First</h3>
               <p className="text-sm text-muted-foreground">
@@ -93,58 +106,48 @@ export default function About() {
       </section>
 
      {/* Founder & CEO */}
-<section className="max-w-6xl mx-auto px-6 py-20 text-center">
-  <h2 className="text-3xl font-bold mb-12">Meet Our Leadership</h2>
+<section className="max-w-6xl mx-auto px-6 py-20">
+  <h2 className="text-3xl font-bold mb-8 text-center">Meet Our Leadership</h2>
 
-  <div className="grid md:grid-cols-2 gap-12">
+  <div className="grid md:grid-cols-2 gap-8">
     {/* CEO */}
-    <div className="bg-card shadow-soft rounded-2xl p-10 flex flex-col items-center">
+    <div className="flex gap-6 items-center bg-card rounded-2xl p-6 shadow-sm hover:shadow-lg transition">
       <img
         src={founderImg}
         alt="CEO"
-        className="w-56 h-56 object-cover rounded-full shadow-lg mb-6"
+        className="w-36 h-36 object-cover rounded-full shadow-md"
       />
-      <h3 className="text-2xl font-semibold">Nikhil Gupta</h3>
-          <p className="text-muted-foreground text-sm mb-4">CEO, HN Mart</p>
-      <p className="max-w-md text-muted-foreground leading-relaxed">
-        Nikhil Gupta started HN Mart with a vision to revolutionize shopping. 
-        With a background in technology and retail, he leads with innovation, 
-        trust, and customer-first values.
-      </p>
+      <div>
+        <h3 className="text-xl font-semibold">Nikhil Gupta</h3>
+        <p className="text-sm text-muted-foreground mb-3">CEO, HN Mart</p>
+        <p className="text-muted-foreground leading-relaxed">Nikhil started HN Mart with a vision to revolutionize shopping. He leads with innovation and customer-first values.</p>
+      </div>
     </div>
 
     {/* Founder */}
-    <div className="bg-card shadow-soft rounded-2xl p-10 flex flex-col items-center">
+    <div className="flex gap-6 items-center bg-card rounded-2xl p-6 shadow-sm hover:shadow-lg transition">
       <img
         src={ceoImg}
         alt="Founder"
-        className="w-56 h-56 object-cover rounded-full shadow-lg mb-6"
+        className="w-36 h-36 object-cover rounded-full shadow-md"
       />
-      <h3 className="text-2xl font-semibold">Harshita Tiwari</h3>
-  <p className="text-muted-foreground text-sm mb-4">Founder, HN Mart</p>
-      <p className="max-w-md text-muted-foreground leading-relaxed">
-  Harshita laid the foundation of HN Mart with passion and dedication. 
-        She brings creativity and a customer-first mindset, ensuring the company 
-        always delivers value and quality.
-      </p>
+      <div>
+        <h3 className="text-xl font-semibold">Harshita Tiwari</h3>
+        <p className="text-sm text-muted-foreground mb-3">Founder, HN Mart</p>
+        <p className="text-muted-foreground leading-relaxed">Harshita laid the foundation of HN Mart with passion and dedication, bringing creativity and a customer-first mindset to the company.</p>
+      </div>
     </div>
   </div>
 </section>
 
 
       {/* Call to Action */}
-      <section className="max-w-6xl mx-auto px-6 py-20 text-center">
-        <h2 className="text-3xl font-bold mb-6">We’re More Than Just a Store</h2>
-        <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
-          HN Mart is built by a passionate team that believes shopping should 
-          be effortless, enjoyable, and affordable for everyone.
-        </p>
-        <a
-          href="/contact"
-          className="inline-block bg-primary text-primary-foreground px-6 py-3 rounded-xl shadow hover:shadow-lg transition font-medium"
-        >
-          Contact Us
-        </a>
+      <section className="max-w-6xl mx-auto px-6 py-16 text-center">
+        <div className="bg-gradient-to-r from-primary/5 to-accent/5 p-8 rounded-2xl">
+          <h2 className="text-2xl font-bold mb-3">Were More Than Just a Store</h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto mb-6">HN Mart is built by a passionate team that believes shopping should be effortless, enjoyable, and affordable for everyone.</p>
+          <a href="/contact" className="inline-flex items-center bg-primary text-primary-foreground px-6 py-3 rounded-lg shadow hover:shadow-lg transition font-medium">Contact Us</a>
+        </div>
       </section>
     </div>
   );

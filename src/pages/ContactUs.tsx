@@ -17,12 +17,12 @@ const ContactUs: React.FC = () => {
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         {/* Info panel */}
-        <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-0">
-          <CardHeader>
-            <CardTitle className="text-2xl">Get in touch</CardTitle>
-            <p className="text-muted-foreground mt-2">We’re here to help — send us a message and we’ll get back to you within 24 hours.</p>
-          </CardHeader>
-          <CardContent>
+        <Card className="overflow-hidden">
+          <div className="p-6 bg-gradient-to-br from-primary/5 to-accent/5">
+            <h3 className="text-2xl font-semibold">Get in touch</h3>
+            <p className="text-sm text-muted-foreground mt-2">We're here to help — send us a message and we’ll get back to you within 24 hours.</p>
+          </div>
+          <CardContent className="p-6">
             <div className="space-y-6">
               <div className="flex items-start space-x-4">
                 <div className="p-3 bg-primary/10 rounded-lg">
@@ -54,29 +54,29 @@ const ContactUs: React.FC = () => {
                 </div>
               </div>
 
-              <div className="mt-4">
+              <div className="mt-2">
                 <p className="text-sm text-muted-foreground">Prefer immediate help? Use the chat bubble at the bottom-right to start a quick conversation.</p>
               </div>
             </div>
           </CardContent>
+          <div className="h-40 bg-gradient-to-br from-accent/5 to-transparent flex items-center justify-center text-sm text-muted-foreground">Map preview (replace with embedded map)</div>
         </Card>
 
         {/* Contact form */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Send us a message</CardTitle>
-            <p className="text-muted-foreground mt-2">Tell us about your query and we’ll reply as soon as possible.</p>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
+            <h3 className="text-2xl font-semibold mb-2">Send us a message</h3>
+            <p className="text-sm text-muted-foreground mb-4">Tell us about your query and we’ll reply as soon as possible.</p>
             <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); alert('Message sent (stub)'); }}>
-              <div>
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" placeholder="Your full name" required />
-              </div>
-
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="you@example.com" required />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Name</Label>
+                  <Input id="name" placeholder="Your full name" required />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" placeholder="you@example.com" required />
+                </div>
               </div>
 
               <div>
@@ -91,7 +91,7 @@ const ContactUs: React.FC = () => {
 
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">We'll never share your details.</div>
-                <Button type="submit">Send Message</Button>
+                <Button type="submit" className="ml-4">Send Message</Button>
               </div>
             </form>
           </CardContent>

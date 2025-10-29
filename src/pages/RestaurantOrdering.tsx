@@ -27,7 +27,8 @@ const RestaurantOrdering = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: restaurantsError } = await supabase
+      // Cast to any because the generated supabase types may not include `restaurants`.
+      const { data, error: restaurantsError } = await (supabase as any)
         .from('restaurants')
         .select('*')
         .order('name', { ascending: true });
@@ -36,7 +37,7 @@ const RestaurantOrdering = () => {
         throw restaurantsError;
       }
 
-      setRestaurants((data as Restaurant[]) || []);
+      setRestaurants((data as any) || []);
     } catch (err) {
       console.error('Error loading restaurants:', err);
       const message =

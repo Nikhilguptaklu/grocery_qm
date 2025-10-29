@@ -6,7 +6,10 @@ export interface Product {
   price: number;
   category: string;
   image: string;
+  description?: string | null;
   unit?: string; // e.g., '1kg', '500g', '2L'
+  brand?: string | null;
+  keywords?: string[];
   type?: 'grocery' | 'restaurant';
   restaurantId?: string;
   restaurantName?: string;

@@ -36,7 +36,7 @@ const RestaurantMenu = () => {
   const fetchRestaurantData = async (id: string) => {
     setLoading(true);
     try {
-      const { data: restaurantData, error: restaurantError } = await supabase
+      const { data: restaurantData, error: restaurantError } = await (supabase as any)
         .from('restaurants')
         .select('*')
         .eq('id', id)
@@ -46,7 +46,7 @@ const RestaurantMenu = () => {
         throw restaurantError;
       }
 
-      if (!restaurantData || !(restaurantData as Restaurant).is_active) {
+  if (!restaurantData || !(restaurantData as any).is_active) {
         toast({
           title: 'Unavailable',
           description: 'This restaurant is not currently available.',
@@ -56,9 +56,9 @@ const RestaurantMenu = () => {
         return;
       }
 
-      setRestaurant(restaurantData as Restaurant);
+  setRestaurant(restaurantData as unknown as Restaurant);
 
-      const { data: foodsData, error: foodsError } = await supabase
+      const { data: foodsData, error: foodsError } = await (supabase as any)
         .from('restaurant_foods')
         .select('*')
         .eq('restaurant_id', id)
@@ -69,7 +69,7 @@ const RestaurantMenu = () => {
         throw foodsError;
       }
 
-      setFoods((foodsData as RestaurantFood[]) || []);
+  setFoods((foodsData as unknown as RestaurantFood[]) || []);
     } catch (err) {
       console.error('Error loading restaurant menu:', err);
       toast({

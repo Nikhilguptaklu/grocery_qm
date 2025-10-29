@@ -37,8 +37,7 @@ const Checkout = () => {
   const [address, setAddress] = useState({
     street: '',
     city: '',
-    state: '',
-    zipCode: '',
+    // state and zipCode removed per request
     phone: '',
     landmark: '',
     alternatePhone: ''
@@ -49,7 +48,6 @@ const Checkout = () => {
   const [selectedPreviousAddress, setSelectedPreviousAddress] = useState<string>('');
 
   const [paymentMethod, setPaymentMethod] = useState('card');
-  const [deliveryNotes, setDeliveryNotes] = useState('');
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   
   // Coupon state
@@ -114,15 +112,16 @@ const Checkout = () => {
     const fetchDeliverySettings = async () => {
       try {
         console.log('Fetching delivery settings...');
+        // Use maybeSingle() so PostgREST does not return 406 when no rows found
         const { data, error } = await (supabase as any)
           .from('delivery_settings')
           .select('*')
           .eq('is_active', true)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        if (error) {
           console.error('Error fetching delivery settings:', error);
           console.log('Will use default delivery settings');
         } else if (data) {
@@ -318,7 +317,7 @@ const Checkout = () => {
       return;
     }
 
-    if (!address.street || !address.city || !address.state || !address.zipCode || !address.phone) {
+    if (!address.street || !address.city || !address.phone) {
       toast({
         title: "Complete address required",
         description: "Please fill in all address fields.",
@@ -345,8 +344,8 @@ const Checkout = () => {
       return;
     }
 
-    setIsProcessing(true);
-    try {
+  setIsProcessing(true);
+  try {
       console.log('Starting order placement...', {
         user: user.id,
         cartItems: cartItems.length,
@@ -354,7 +353,7 @@ const Checkout = () => {
         restaurantItems: restaurantItems.length
       });
 
-      const fullAddress = `${address.street}, ${address.city}, ${address.state} ${address.zipCode}, Landmark: ${address.landmark}`;
+  const fullAddress = `${address.street}, ${address.city}, Landmark: ${address.landmark}`;
       const discount = calculateDiscount();
       const deliveryFeeAmount = calculateDeliveryFee();
       const groceryTaxAmount = (grocerySubtotal - discount + deliveryFeeAmount) * 0.1;
@@ -371,6 +370,85 @@ const Checkout = () => {
       let createdOrderId: string | null = null;
       let createdRestaurantOrderIds: string[] = [];
 
+      // Helper to load Razorpay script
+      const loadRazorpayScript = () =>
+        new Promise((resolve, reject) => {
+          if (document.getElementById('razorpay-script')) return resolve(true);
+          const script = document.createElement('script');
+          script.id = 'razorpay-script';
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.onload = () => resolve(true);
+          script.onerror = () => reject(new Error('Razorpay script failed to load'));
+          document.body.appendChild(script);
+        });
+
+      // Function to handle online payment via Razorpay
+      const handleOnlinePayment = async (amount: number) => {
+        // Create order on server
+        const serverBase = import.meta.env.VITE_PAYMENT_SERVER_URL || 'http://localhost:4000';
+        const createRes = await fetch(`${serverBase}/api/create-order`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount }),
+        });
+
+        if (!createRes.ok) {
+          const err = await createRes.json().catch(() => ({}));
+          throw new Error(err?.error || 'Failed to create payment order');
+        }
+
+        const { order } = await createRes.json();
+
+        await loadRazorpayScript();
+
+        return new Promise((resolve, reject) => {
+          const options: any = {
+            key: import.meta.env.VITE_RAZORPAY_KEY_ID || '',
+            amount: order.amount, // amount in paise
+            currency: order.currency,
+            name: 'HN Mart',
+            description: 'Order payment',
+            order_id: order.id,
+            handler: async function (response: any) {
+              try {
+                // Verify payment on server
+                const verifyRes = await fetch(`${serverBase}/api/verify-payment`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(response),
+                });
+
+                const verifyJson = await verifyRes.json();
+                if (verifyJson.verified) {
+                  resolve({ verified: true, razorpay: response, orderId: order.id });
+                } else {
+                  reject(new Error('Payment verification failed'));
+                }
+              } catch (err) {
+                reject(err);
+              }
+            },
+            prefill: {
+              name: user?.user_metadata?.full_name || user?.email || '',
+              contact: address.phone || '',
+            },
+            method: {
+              upi: true,
+              card: true,
+              netbanking: false,
+              wallet: false,
+            },
+            modal: { escape: true },
+          };
+
+          const rzp = new (window as any).Razorpay(options);
+          rzp.on('payment.failed', function (resp: any) {
+            reject(new Error(resp?.error?.description || 'Payment failed'));
+          });
+          rzp.open();
+        });
+      };
+
       if (groceryItems.length > 0) {
         console.log('Creating grocery order...');
         
@@ -378,9 +456,9 @@ const Checkout = () => {
         const orderData: any = {
           user_id: user.id,
           total_amount: groceryTotalAmount,
-          status: 'confirmed',
+          status: paymentMethod === 'card' ? 'payment_pending' : 'confirmed',
           delivery_address: fullAddress,
-          delivery_notes: `${deliveryNotes} | Alt Phone: ${address.alternatePhone} | Payment: ${paymentMethod} | Coupon: ${appliedCoupon?.code || 'None'} | Discount: ₹${discount} | Delivery Fee: ₹${deliveryFeeAmount}`,
+          delivery_notes: `Alt Phone: ${address.alternatePhone} | Payment: ${paymentMethod} | Coupon: ${appliedCoupon?.code || 'None'} | Discount: ₹${discount} | Delivery Fee: ₹${deliveryFeeAmount}`,
         };
         
         // Try to add optional columns if they exist
@@ -442,6 +520,29 @@ const Checkout = () => {
         }
 
         createdOrderId = order.id;
+
+        // If online payment selected, open Razorpay and verify before finalizing
+        if (paymentMethod === 'card') {
+          try {
+            const paymentResult: any = await handleOnlinePayment(groceryTotalAmount);
+            console.log('Payment verified:', paymentResult);
+
+            // Update order status to paid
+            const { error: updateError } = await supabase
+              .from('orders')
+              .update({ status: 'paid', payment_reference: (paymentResult as any).razorpay?.razorpay_payment_id } as any)
+              .eq('id', createdOrderId);
+
+            if (updateError) {
+              console.error('Failed to update order status after payment:', updateError);
+            }
+          } catch (err) {
+            console.error('Online payment failed or not verified:', err);
+            // Mark order as failed
+            await supabase.from('orders').update({ status: 'payment_failed' } as any).eq('id', createdOrderId);
+            throw err;
+          }
+        }
       }
 
       if (restaurantItems.length > 0) {
@@ -480,7 +581,7 @@ const Checkout = () => {
               status: 'pending',
               total_amount: totalAmount,
               payment_method: paymentMethod,
-              notes: `${deliveryNotes || ''} | Alt Phone: ${address.alternatePhone}`,
+              notes: `${address.alternatePhone ? `Alt Phone: ${address.alternatePhone}` : ''}`,
             })
             .select()
             .single();
@@ -685,12 +786,8 @@ const Checkout = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <Input placeholder="Street" value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Input placeholder="City" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
-                      <Input placeholder="State" value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Input placeholder="ZIP Code" value={address.zipCode} onChange={(e) => setAddress({ ...address, zipCode: e.target.value })} />
+                    <div className="grid grid-cols-1 gap-4">
+                      <Input placeholder="City" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} required />
                       <Input 
                         placeholder="Phone (10 digits)" 
                         value={address.phone} 
@@ -702,6 +799,7 @@ const Checkout = () => {
                         }}
                         maxLength={10}
                         pattern="[0-9]{10}"
+                        required
                       />
                     </div>
                     <Input placeholder="Landmark (e.g. Near SBI Bank)" value={address.landmark} onChange={(e) => setAddress({ ...address, landmark: e.target.value })} />
@@ -717,8 +815,6 @@ const Checkout = () => {
                       maxLength={10}
                       pattern="[0-9]{10}"
                     />
-
-                    <Textarea placeholder="Delivery Notes (Optional)" value={deliveryNotes} onChange={(e) => setDeliveryNotes(e.target.value)} rows={3} />
                   </CardContent>
                 </Card>
 

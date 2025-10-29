@@ -25,6 +25,9 @@ const emptyProductForm = {
   category: '',
   stock: '',
   image: '',
+  unit: '',
+  brand: '',
+  keywords: '',
 };
 
 const ProductsPage = ({ products, onRefresh, currentUserId }: ProductsPageProps) => {
@@ -95,17 +98,44 @@ const ProductsPage = ({ products, onRefresh, currentUserId }: ProductsPageProps)
         price: parseFloat(formState.price),
         category: formState.category,
         stock: parseInt(formState.stock, 10),
+        unit: formState.unit?.trim() || null,
+        brand: formState.brand?.trim() || null,
         image: formState.image.trim() || null,
         created_by: currentUserId,
       };
 
       let error;
+      // We'll capture the product id (new or existing) so we can save keywords
+      let savedProductId = editingProductId;
       if (editingProductId) {
         const { error: updateError } = await supabase.from('products').update(payload).eq('id', editingProductId);
         error = updateError;
       } else {
-        const { error: insertError } = await supabase.from('products').insert([payload]);
+        const { data: insertData, error: insertError } = await supabase.from('products').insert([payload]).select().single();
         error = insertError;
+        if (!insertError && insertData) {
+          savedProductId = insertData.id;
+        }
+      }
+
+      // If product saved, handle keywords insert/delete
+      if (!error && savedProductId) {
+        try {
+          // delete existing keywords for this product (safe on create where none exist)
+          await supabase.from('product_keywords').delete().eq('product_id', savedProductId);
+
+          const raw = formState.keywords || '';
+          const keywords = raw.split(',').map(s => s.trim()).filter(Boolean);
+          if (keywords.length > 0) {
+            const rows = keywords.map(k => ({ product_id: savedProductId, keyword: k }));
+            const { error: kwError } = await supabase.from('product_keywords').insert(rows);
+            if (kwError) {
+              console.warn('Failed saving product keywords:', kwError);
+            }
+          }
+        } catch (kwErr) {
+          console.warn('Error saving product keywords:', kwErr);
+        }
       }
 
       if (error) {
@@ -162,16 +192,38 @@ const ProductsPage = ({ products, onRefresh, currentUserId }: ProductsPageProps)
   };
 
   const handleEdit = (product: Product) => {
-    setFormState({
-      name: product.name,
-      description: product.description,
-      price: product.price.toString(),
-      category: product.category,
-      stock: product.stock.toString(),
-      image: product.image ?? '',
-    });
-    setEditingProductId(product.id);
-    setShowDialog(true);
+    // Load associated keywords and populate form
+    (async () => {
+      try {
+        const { data: kws } = await supabase.from('product_keywords').select('keyword').eq('product_id', product.id);
+        const keywords = Array.isArray(kws) ? kws.map((k: any) => k.keyword).join(', ') : '';
+        setFormState({
+          name: product.name,
+          description: product.description,
+          price: product.price.toString(),
+          category: product.category,
+          stock: product.stock.toString(),
+          image: product.image ?? '',
+          unit: product.unit ?? '',
+          brand: product.brand ?? '',
+          keywords,
+        });
+      } catch (err) {
+        setFormState({
+          name: product.name,
+          description: product.description,
+          price: product.price.toString(),
+          category: product.category,
+          stock: product.stock.toString(),
+          image: product.image ?? '',
+          unit: product.unit ?? '',
+          brand: product.brand ?? '',
+          keywords: '',
+        });
+      }
+      setEditingProductId(product.id);
+      setShowDialog(true);
+    })();
   };
 
   const handleDialogChange = (open: boolean) => {
@@ -280,6 +332,35 @@ const ProductsPage = ({ products, onRefresh, currentUserId }: ProductsPageProps)
                   placeholder="https://example.com/image.jpg"
                 />
               </div>
+              <div>
+                <Label htmlFor="unit">Weight / Unit</Label>
+                <Input
+                  id="unit"
+                  value={formState.unit}
+                  onChange={(event) => setFormState({ ...formState, unit: event.target.value })}
+                  placeholder="e.g. 500g, 1kg, 1L"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="brand">Brand</Label>
+                <Input
+                  id="brand"
+                  value={formState.brand}
+                  onChange={(event) => setFormState({ ...formState, brand: event.target.value })}
+                  placeholder="Brand name (optional)"
+                />
+              </div>
+              <div>
+                <Label htmlFor="keywords">Local names / Keywords</Label>
+                <Input
+                  id="keywords"
+                  value={formState.keywords}
+                  onChange={(event) => setFormState({ ...formState, keywords: event.target.value })}
+                  placeholder="Comma-separated (e.g. chawal, bhaat)"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Add local names or aliases separated by commas. These help search.</p>
+              </div>
               <Button type="submit" className="w-full" disabled={isSaving}>
                 {isSaving ? 'Saving...' : editingProductId ? 'Update Product' : 'Add Product'}
               </Button>
@@ -321,11 +402,12 @@ const ProductsPage = ({ products, onRefresh, currentUserId }: ProductsPageProps)
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-lg font-bold">{'\u20B9'}{product.price.toFixed(2)}</span>
                   <div className="flex gap-2">
-                    <Badge variant="secondary">Stock: {product.stock}</Badge>
-                    <Badge variant="outline" className="capitalize">
-                      {product.category}
-                    </Badge>
-                  </div>
+                      <Badge variant="secondary">Stock: {product.stock}</Badge>
+                      <Badge variant="outline" className="capitalize">{product.category}</Badge>
+                      {product.unit && <Badge variant="outline">{product.unit}</Badge>}
+                      {product.brand && <Badge variant="secondary">{product.brand}</Badge>}
+                      { /* keywords not joined in product query; leave display to product detail */ }
+                    </div>
                 </div>
                 <div className="flex space-x-2">
                   <Button size="sm" variant="outline" onClick={() => handleEdit(product)}>

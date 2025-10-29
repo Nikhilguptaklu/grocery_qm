@@ -71,3 +71,33 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Local payment server for Razorpay integration
+
+This project includes a small Express server under `server/` that is used to create Razorpay orders and verify payments.
+
+Steps to run the server locally:
+
+1. Copy `server/.env.example` to `server/.env` and set your Razorpay credentials.
+2. Install server dependencies and start the server:
+
+```sh
+cd server
+npm install
+npm run dev
+```
+
+3. The server will run on the port set in `server/.env` (default 4000) and expose these endpoints:
+- `POST /api/create-order` - body: { amount: number, currency?: 'INR', receipt?: string }
+- `POST /api/verify-payment` - body: { razorpay_order_id, razorpay_payment_id, razorpay_signature }
+
+These endpoints are intentionally minimal. They create Razorpay orders (amount in rupees) and verify the payment signature.
+
+Frontend configuration
+
+Add a `.env` file at the project root (you can copy `.env.example`) with these variables:
+
+- `VITE_PAYMENT_SERVER_URL` - URL where the payment server runs (default http://localhost:4000)
+- `VITE_RAZORPAY_KEY_ID` - Your Razorpay Key ID (public) to prefill the Checkout. The secret must remain on the server.
+
+

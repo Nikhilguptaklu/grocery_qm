@@ -51,6 +51,7 @@ const RestaurantOrdersPage = ({ orders, restaurants, deliveryUsers, onRefresh }:
   const [selectedDeliveryByOrder, setSelectedDeliveryByOrder] = useState<Record<string, string | null>>({});
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
+  const [restaurantFilter, setRestaurantFilter] = useState<string>('all');
 
   const restaurantsMap = useMemo(
     () => new Map(restaurants.map((restaurant) => [restaurant.id, restaurant])),
@@ -85,13 +86,23 @@ const RestaurantOrdersPage = ({ orders, restaurants, deliveryUsers, onRefresh }:
     }, {});
   }, [orders]);
 
+  const restaurantCounts = useMemo(() => {
+    return orders.reduce<Record<string, number>>((acc, order) => {
+      if (order.restaurant_id) {
+        acc[order.restaurant_id] = (acc[order.restaurant_id] || 0) + 1;
+      }
+      return acc;
+    }, {});
+  }, [orders]);
+
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
       const statusOk = statusFilter === 'all' || order.status === statusFilter;
       const assigneeOk = assigneeFilter === 'all' || order.delivery_person_id === assigneeFilter;
-      return statusOk && assigneeOk;
+      const restaurantOk = restaurantFilter === 'all' || order.restaurant_id === restaurantFilter;
+      return statusOk && assigneeOk && restaurantOk;
     });
-  }, [orders, statusFilter, assigneeFilter]);
+  }, [orders, statusFilter, assigneeFilter, restaurantFilter]);
 
   const toggleOrderExpansion = (orderId: string) => {
     setExpandedOrders((prev) => {
@@ -130,7 +141,13 @@ const RestaurantOrdersPage = ({ orders, restaurants, deliveryUsers, onRefresh }:
         updatePayload.delivery_person_id = null;
       }
 
-      const { error } = await supabase.from('restaurant_orders').update(updatePayload).eq('id', orderId);
+      const { data: updated, error } = await supabase
+        .from('restaurant_orders')
+        .update(updatePayload)
+        .eq('id', orderId)
+        .select()
+        .maybeSingle();
+
       if (error) {
         throw error;
       }
@@ -139,7 +156,15 @@ const RestaurantOrdersPage = ({ orders, restaurants, deliveryUsers, onRefresh }:
       await onRefresh();
     } catch (err) {
       console.error('Error saving order changes:', err);
-      const message = err instanceof Error ? err.message : 'Failed to save changes';
+      // Supabase returns a PostgrestError object; surface its message if present
+      let message = 'Failed to save changes';
+      if (err && typeof err === 'object') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const e: any = err;
+        message = e.message || e.details || JSON.stringify(e);
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
       toast({ title: 'Error', description: message, variant: 'destructive' });
     }
   };
@@ -180,6 +205,25 @@ const RestaurantOrdersPage = ({ orders, restaurants, deliveryUsers, onRefresh }:
                 {deliveryUsers.map((user) => (
                   <SelectItem key={user.id} value={user.id}>
                     {(user.name || user.email) + (user.role === 'admin' ? ' (Admin)' : '')} ({assigneeCounts[user.id] || 0})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {restaurants.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Restaurant</span>
+            <Select value={restaurantFilter} onValueChange={setRestaurantFilter}>
+              <SelectTrigger className="w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All ({orders.length})</SelectItem>
+                {restaurants.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.name} ({restaurantCounts[r.id] || 0})
                   </SelectItem>
                 ))}
               </SelectContent>

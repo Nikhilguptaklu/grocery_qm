@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   ShoppingCart,
+  ShoppingBag,
   User,
   Home,
   LogIn,
@@ -25,8 +26,8 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 
 const Navbar = () => {
-  const { cartItems } = useCart();
-  const { user, signOut } = useAuth();
+  const { cartItems, getCartTotal } = useCart();
+  const { user, signOut, loading } = useAuth();
   const location = useLocation();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
@@ -135,6 +136,30 @@ const Navbar = () => {
               <span>About Us</span>
             </Link>
 
+            {userRole === 'shop' && (
+              <Link
+                to="/shop"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg font-medium transition-colors ${
+                  isActive('/shop') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span>Shop</span>
+              </Link>
+            )}
+
+            {userRole === 'restaurant' && (
+              <Link
+                to="/restaurant-dashboard"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg font-medium transition-colors ${
+                  isActive('/restaurant-dashboard') ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                <UtensilsCrossed className="w-4 h-4" />
+                <span>Restaurant</span>
+              </Link>
+            )}
+
             <Link
               to="/contact"
               className={`flex items-center space-x-2 px-3 py-2 rounded-lg font-medium transition-colors ${
@@ -194,6 +219,22 @@ const Navbar = () => {
                         </Link>
                       </DropdownMenuItem>
                     )}
+                    {userRole === 'shop' && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/shop" className="flex items-center">
+                          <ShoppingBag className="mr-2 h-4 w-4" />
+                          <span>Shop</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {userRole === 'restaurant' && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/restaurant-dashboard" className="flex items-center">
+                          <UtensilsCrossed className="mr-2 h-4 w-4" />
+                          <span>Restaurant</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     {(userRole === 'admin' || userRole === 'delivery') && (
                       <DropdownMenuItem asChild>
                         <Link to="/delivery" className="flex items-center">
@@ -236,7 +277,23 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Actions */}
-          <div className="md:hidden flex items-center gap-1">
+          <div className="md:hidden flex items-center gap-2">
+            {/* Show login/signup buttons prominently on mobile when not logged in */}
+            {!loading && !user && (
+              <>
+                <Link to="/login">
+                  <Button variant="ghost" size="sm" aria-label="Login">
+                    <LogIn className="w-5 h-5" />
+                  </Button>
+                </Link>
+                <Link to="/signup">
+                  <Button variant="ghost" size="sm" aria-label="Sign Up">
+                    <UserPlus className="w-5 h-5" />
+                  </Button>
+                </Link>
+              </>
+            )}
+
             <Link to="/cart">
               <Button variant="ghost" size="sm" className="relative">
                 <ShoppingCart className="w-5 h-5" />
@@ -247,42 +304,62 @@ const Navbar = () => {
                 )}
               </Button>
             </Link>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-controls="mobile-menu"
+              aria-expanded={isMobileMenuOpen}
             >
               <Menu className="w-5 h-5" />
             </Button>
           </div>
         </div>
       </div>
+      {/* Mobile: Sticky bottom 'View Cart' when items exist */}
+  {itemCount > 0 && location.pathname !== '/cart' && location.pathname !== '/checkout' && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 md:hidden">
+          <Link to="/cart">
+            <Button size="lg" className="bg-green-600 text-white px-6 py-3 shadow-lg rounded-full flex items-center space-x-3">
+              <ShoppingCart className="w-5 h-5" />
+              <span className="font-medium">View Cart</span>
+              <span className="text-sm bg-white/20 px-2 py-1 rounded">{itemCount}</span>
+            </Button>
+          </Link>
+        </div>
+      )}
 
-      {/* Mobile Dropdown Menu */}
-      {isMobileMenuOpen && (
-        <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-          {/* Slide-in Menu */}
-          <div className="fixed top-0 right-0 h-full w-80 bg-card border-l shadow-xl z-50 md:hidden transform transition-transform duration-300 ease-in-out">
-            <div className="flex flex-col h-full">
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b">
-                <h2 className="text-lg font-semibold">Menu</h2>
-                <button
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-2 hover:bg-muted rounded-lg"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              {/* Menu Items */}
-              <div className="flex-1 overflow-y-auto p-4">
-                <div className="flex flex-col space-y-2">
+      {/* Mobile Dropdown Menu (animated) */}
+      {/* Backdrop */}
+      <div
+        className={`fixed inset-0 z-40 md:hidden transition-opacity duration-300 ${isMobileMenuOpen ? 'bg-black bg-opacity-50 pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}
+        onClick={() => setIsMobileMenuOpen(false)}
+        aria-hidden={!isMobileMenuOpen}
+      />
+
+      {/* Slide-in Menu Panel */}
+      <div
+        id="mobile-menu"
+        className={`fixed top-0 right-0 h-full w-80 bg-card border-l shadow-xl z-50 md:hidden transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        aria-hidden={!isMobileMenuOpen}
+      >
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b">
+            <h2 className="text-lg font-semibold">Menu</h2>
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="p-2 hover:bg-muted rounded-lg"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Menu Items */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex flex-col space-y-2">
             <Link
               to="/"
               className={`flex items-center space-x-2 px-3 py-2 rounded-lg ${
@@ -381,6 +458,22 @@ const Navbar = () => {
                     </div>
                   </Link>
                 )}
+                {userRole === 'shop' && (
+                  <Link to="/shop" onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center space-x-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
+                      <ShoppingBag className="w-4 h-4" />
+                      <span>Shop</span>
+                    </div>
+                  </Link>
+                )}
+                {userRole === 'restaurant' && (
+                  <Link to="/restaurant-dashboard" onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center space-x-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
+                      <UtensilsCrossed className="w-4 h-4" />
+                      <span>Restaurant</span>
+                    </div>
+                  </Link>
+                )}
                 <button
                   onClick={() => {
                     signOut();
@@ -397,9 +490,7 @@ const Navbar = () => {
               </div>
             </div>
           </div>
-        </>
-      )}
-    </nav>
+      </nav>
   );
 };
 

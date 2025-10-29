@@ -16,6 +16,7 @@ export interface Product {
   updated_at?: string | null;
   created_by?: string | null;
   unit?: string | null;
+  brand?: string | null;
 }
 
 export interface Issue {

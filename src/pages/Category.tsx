@@ -46,7 +46,30 @@ const Category = () => {
             variant: "destructive",
           });
         } else {
-          setProducts(data || []);
+          const prods = (data || []) as any[];
+
+          // fetch keywords for all product ids in one go
+          try {
+            const ids = prods.map(p => p.id).filter(Boolean);
+            if (ids.length > 0) {
+              const { data: kws } = await supabase.from('product_keywords').select('product_id, keyword').in('product_id', ids);
+              const kwMap: Record<string, string[]> = {};
+              if (Array.isArray(kws)) {
+                for (const row of kws) {
+                  if (!kwMap[row.product_id]) kwMap[row.product_id] = [];
+                  kwMap[row.product_id].push(row.keyword);
+                }
+              }
+              // attach keywords to products
+              for (const p of prods) {
+                p.keywords = kwMap[p.id] || [];
+              }
+            }
+          } catch (e) {
+            // ignore keyword fetch errors
+          }
+
+          setProducts(prods || []);
         }
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -228,7 +251,14 @@ const Category = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
-            {products.filter(product => product.name.toLowerCase().includes(search.toLowerCase())).map((product, index) => (
+            {products.filter(product => {
+              const term = search.trim().toLowerCase();
+              if (!term) return true;
+              const name = (product.name || '').toLowerCase();
+              const desc = ((product as any).description || '').toLowerCase();
+              const kws = Array.isArray((product as any).keywords) ? (product as any).keywords.map((k: string) => k.toLowerCase()) : [];
+              return name.includes(term) || desc.includes(term) || kws.some((k: string) => k.includes(term));
+            }).map((product, index) => (
               <Card 
                 key={product.id} 
                 className="flex flex-col justify-between hover:shadow-medium transition-all duration-300 transform hover:-translate-y-1 animate-fade-up"
@@ -251,10 +281,17 @@ const Category = () => {
                   <CardTitle className="text-xs sm:text-sm font-semibold text-foreground mb-1 line-clamp-2 text-center">
                     <Link to={`/product/${product.id}`}>{product.name}</Link>
                   </CardTitle>
+                  {product.description && (
+                    <p className="text-xs text-muted-foreground mb-1 line-clamp-2 text-center">{product.description}</p>
+                  )}
                   {product.unit && (
                     <span className="text-xs text-muted-foreground mb-1">
                       {product.unit}
                     </span>
+                  )}
+                  { /* show brand if present */ }
+                  {(product as any).brand && (
+                    <span className="text-xs text-muted-foreground mb-1 ml-2">{(product as any).brand}</span>
                   )}
                   <span className="text-sm sm:text-base font-bold text-primary">
                     {`₹${Number(product.price).toFixed(2)}`}

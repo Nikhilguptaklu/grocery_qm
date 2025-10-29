@@ -54,41 +54,58 @@ export default function AddressPicker({ onSave, initial }: AddressPickerProps) {
     const marker = L.marker([coords.lat, coords.lon], { draggable: true }).addTo(map);
 
     marker.on('dragend', async () => {
-      const { lat, lng } = marker.getLatLng();
-      setCoords({ lat, lon: lng });
-      setLoading(true);
       try {
-        const url = `${nominatimBase}/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
-        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-        const data = await res.json();
-        setAddress(data?.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-      } catch {
-        setAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-      } finally {
-        setLoading(false);
+        const pos = marker.getLatLng();
+        if (!pos) return;
+        const { lat, lng } = pos as any;
+        setCoords({ lat, lon: lng });
+        setLoading(true);
+        try {
+          const url = `${nominatimBase}/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
+          const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+          const data = await res.json();
+          setAddress(data?.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        } catch {
+          setAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        } finally {
+          setLoading(false);
+        }
+      } catch (err) {
+        // swallow leaflet errors
+        console.warn('Leaflet dragend handler error', err);
       }
     });
 
     // When user pans the map, keep the marker at the center for a "pin-center" UX
     map.on('move', () => {
-      const center = map.getCenter();
-      marker.setLatLng(center);
+      try {
+        const center = map.getCenter();
+        if (!center || !marker) return;
+        marker.setLatLng(center);
+      } catch (err) {
+        console.warn('Leaflet move handler error', err);
+      }
     });
 
     // On pan end, update coords and reverse geocode
     map.on('moveend', async () => {
-      const c = map.getCenter();
-      setCoords({ lat: c.lat, lon: c.lng });
-      setLoading(true);
       try {
-        const url = `${nominatimBase}/reverse?format=jsonv2&lat=${c.lat}&lon=${c.lng}`;
-        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-        const data = await res.json();
-        setAddress(data?.display_name || `${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}`);
-      } catch {
-        setAddress(`${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}`);
-      } finally {
-        setLoading(false);
+        const c = map.getCenter();
+        if (!c) return;
+        setCoords({ lat: c.lat, lon: c.lng });
+        setLoading(true);
+        try {
+          const url = `${nominatimBase}/reverse?format=jsonv2&lat=${c.lat}&lon=${c.lng}`;
+          const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+          const data = await res.json();
+          setAddress(data?.display_name || `${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}`);
+        } catch {
+          setAddress(`${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}`);
+        } finally {
+          setLoading(false);
+        }
+      } catch (err) {
+        console.warn('Leaflet moveend handler error', err);
       }
     });
 
@@ -104,9 +121,17 @@ export default function AddressPicker({ onSave, initial }: AddressPickerProps) {
 
   // Helper to move marker and map
   const moveTo = async (lat: number, lon: number, doReverse = true) => {
-    if (!mapRef.current || !markerRef.current) return;
-    markerRef.current.setLatLng([lat, lon]);
-    mapRef.current.setView([lat, lon], 16);
+    if (!mapRef.current || !markerRef.current) {
+      console.warn('Leaflet map or marker not initialized yet');
+      return;
+    }
+    try {
+      markerRef.current.setLatLng([lat, lon]);
+      mapRef.current.setView([lat, lon], 16);
+    } catch (err) {
+      console.warn('Error moving map/marker', err);
+      return;
+    }
     setCoords({ lat, lon });
     if (doReverse) {
       setLoading(true);
